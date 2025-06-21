@@ -115,7 +115,7 @@ export const ChatAssistant: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [transcription, setTranscription] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
   
@@ -328,9 +328,9 @@ export const ChatAssistant: React.FC = () => {
     <main className="flex-1 ml-70 bg-eldercare-background flex" role="main" aria-label="Chat with Mitra">
       {/* Chat History Sidebar */}
       <aside 
-        className={`bg-white border-r border-eldercare-primary/20 transition-all duration-300 flex-shrink-0 ${
+        className={`bg-white border-r border-eldercare-primary/20 transition-all duration-300 flex-shrink-0 shadow-lg ${
           sidebarOpen ? 'w-80' : 'w-0'
-        } overflow-hidden`}
+        } overflow-hidden ${sidebarOpen ? 'relative' : 'absolute'} z-10 h-full`}
         role="complementary"
         aria-label="Chat history"
       >
@@ -432,15 +432,14 @@ export const ChatAssistant: React.FC = () => {
         <header className="flex-shrink-0 p-4 bg-eldercare-background border-b border-eldercare-primary/10">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center space-x-3">
-              {!sidebarOpen && (
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2 hover:bg-eldercare-primary/10 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary"
-                  aria-label="Open chat history"
-                >
-                  <Menu size={20} className="text-eldercare-primary" />
-                </button>
-              )}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 hover:bg-eldercare-primary/10 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary"
+                aria-label={sidebarOpen ? "Close chat history" : "Open chat history"}
+                title={sidebarOpen ? "Hide past conversations" : "Show past conversations"}
+              >
+                <Clock size={20} className="text-eldercare-primary" />
+              </button>
               
               <div className="p-2 bg-eldercare-primary/10 rounded-full">
                 <MessageCircle size={24} className="text-eldercare-primary" aria-hidden="true" />
