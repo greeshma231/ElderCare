@@ -460,14 +460,14 @@ export const ChatAssistant: React.FC = () => {
         </header>
 
         {/* Chat Container - Flexible */}
-        <div className="flex-1 flex flex-col min-h-0 p-6">
-          <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
+        <div className="flex-1 flex flex-col min-h-0 p-8">
+          <div className="max-w-6xl mx-auto w-full flex flex-col h-full">
             {/* Chat Window - Takes remaining space */}
-            <div className="flex-1 bg-white rounded-xl shadow-md border border-eldercare-primary/10 flex flex-col overflow-hidden min-h-0">
+            <div className="flex-1 bg-white rounded-xl shadow-md border border-eldercare-primary/10 flex flex-col overflow-hidden min-h-[600px]">
               {/* Messages Area - Scrollable */}
               <div 
                 ref={chatContainerRef}
-                className="flex-1 overflow-y-auto p-6 space-y-4" 
+                className="flex-1 overflow-y-auto p-8 space-y-6" 
                 role="log" 
                 aria-live="polite" 
                 aria-label="Chat messages"
@@ -482,13 +482,13 @@ export const ChatAssistant: React.FC = () => {
                     <div
                       className={`max-w-lg px-6 py-4 rounded-2xl shadow-sm ${
                         message.sender === 'user'
-                          ? 'bg-orange-100 text-eldercare-secondary ml-4'
-                          : 'bg-eldercare-sidebar text-eldercare-secondary mr-4'
+                          ? 'bg-orange-100 text-eldercare-secondary ml-6'
+                          : 'bg-eldercare-sidebar text-eldercare-secondary mr-6'
                       }`}
                       role="article"
                       aria-label={`Message from ${message.sender === 'user' ? 'you' : 'Mitra'}`}
                     >
-                      <p className="text-base lg:text-lg font-opensans leading-relaxed mb-2 break-words">
+                      <p className="text-lg lg:text-xl font-opensans leading-relaxed mb-3 break-words">
                         {message.text}
                       </p>
                       <div className="flex items-center justify-between">
@@ -513,10 +513,10 @@ export const ChatAssistant: React.FC = () => {
                 {/* Typing Indicator */}
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-eldercare-sidebar text-eldercare-secondary mr-4 px-6 py-4 rounded-2xl shadow-sm">
+                    <div className="bg-eldercare-sidebar text-eldercare-secondary mr-6 px-6 py-4 rounded-2xl shadow-sm">
                       <div className="flex items-center space-x-2">
                         <Loader2 size={16} className="animate-spin text-eldercare-primary" />
-                        <span className="text-base font-opensans">Mitra is typing...</span>
+                        <span className="text-lg font-opensans">Mitra is typing...</span>
                       </div>
                     </div>
                   </div>
@@ -527,12 +527,12 @@ export const ChatAssistant: React.FC = () => {
 
               {/* Voice Transcription Display */}
               {(isListening || transcription) && (
-                <div className="px-6 py-3 bg-blue-50 border-t border-blue-100">
+                <div className="px-8 py-4 bg-blue-50 border-t border-blue-100">
                   <div className="flex items-center space-x-2">
                     {isListening && (
                       <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" aria-hidden="true"></div>
                     )}
-                    <span className="text-sm font-opensans text-blue-700">
+                    <span className="text-base font-opensans text-blue-700">
                       {isListening ? 'Listening...' : `Heard: "${transcription}"`}
                     </span>
                   </div>
@@ -540,8 +540,8 @@ export const ChatAssistant: React.FC = () => {
               )}
 
               {/* Input Area - Fixed at bottom */}
-              <div className="flex-shrink-0 p-6 border-t border-eldercare-primary/10 bg-eldercare-background/30">
-                <div className="flex items-end space-x-3">
+              <div className="flex-shrink-0 p-8 border-t border-eldercare-primary/10 bg-eldercare-background/30">
+                <div className="flex items-end space-x-4">
                   {/* Text Input */}
                   <div className="flex-1">
                     <label htmlFor="message-input" className="sr-only">
@@ -555,7 +555,7 @@ export const ChatAssistant: React.FC = () => {
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder="Type your message..."
-                      className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-xl focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200 bg-white"
+                      className="w-full px-6 py-4 text-lg font-opensans border-2 border-eldercare-primary/20 rounded-xl focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200 bg-white"
                       disabled={isListening}
                     />
                   </div>
@@ -563,7 +563,7 @@ export const ChatAssistant: React.FC = () => {
                   {/* Voice Input Button */}
                   <button
                     onClick={handleVoiceInput}
-                    className={`min-w-[44px] min-h-[44px] p-3 rounded-xl transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-offset-2 ${
+                    className={`min-w-[52px] min-h-[52px] p-4 rounded-xl transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-offset-2 ${
                       isListening
                         ? 'bg-red-500 hover:bg-red-600 focus:ring-red-500 animate-pulse'
                         : 'bg-eldercare-primary hover:bg-eldercare-primary-dark focus:ring-eldercare-primary'
@@ -572,9 +572,9 @@ export const ChatAssistant: React.FC = () => {
                     title={isListening ? 'Click to stop listening' : 'Click to use voice input'}
                   >
                     {isListening ? (
-                      <MicOff size={20} className="text-white" aria-hidden="true" />
+                      <MicOff size={24} className="text-white" aria-hidden="true" />
                     ) : (
-                      <Mic size={20} className="text-white" aria-hidden="true" />
+                      <Mic size={24} className="text-white" aria-hidden="true" />
                     )}
                   </button>
 
@@ -582,11 +582,11 @@ export const ChatAssistant: React.FC = () => {
                   <button
                     onClick={() => handleSendMessage(inputText)}
                     disabled={!inputText.trim() || isListening}
-                    className="min-w-[44px] min-h-[44px] p-3 bg-eldercare-primary hover:bg-eldercare-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
+                    className="min-w-[52px] min-h-[52px] p-4 bg-eldercare-primary hover:bg-eldercare-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
                     aria-label="Send message"
                     title="Send message"
                   >
-                    <Send size={20} aria-hidden="true" />
+                    <Send size={24} aria-hidden="true" />
                   </button>
                 </div>
               </div>
