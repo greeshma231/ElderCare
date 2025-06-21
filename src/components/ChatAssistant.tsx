@@ -5,7 +5,18 @@ import {
   Send, 
   Volume2, 
   MessageCircle,
-  Loader2
+  Loader2,
+  Plus,
+  Clock,
+  Smile,
+  Meh,
+  Frown,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Save
 } from 'lucide-react';
 
 interface Message {
@@ -16,25 +27,105 @@ interface Message {
   hasAudio?: boolean;
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  lastUpdated: Date;
+  mood: 'happy' | 'neutral' | 'sad';
+  messages: Message[];
+}
+
 export const ChatAssistant: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [currentSessionId, setCurrentSessionId] = useState<string>('1');
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
     {
       id: '1',
-      text: "Hi, I'm Mitra, your AI companion. I'm here to support you with reminders, wellness, or just a friendly chat. How can I help you today?",
-      sender: 'mitra',
-      timestamp: new Date(),
-      hasAudio: true
+      title: 'Mitra – June 21, 2025',
+      lastUpdated: new Date(),
+      mood: 'happy',
+      messages: [
+        {
+          id: '1',
+          text: "Hi, I'm Mitra, your AI companion. I'm here to support you with reminders, wellness, or just a friendly chat. How can I help you today?",
+          sender: 'mitra',
+          timestamp: new Date(),
+          hasAudio: true
+        }
+      ]
+    },
+    {
+      id: '2',
+      title: 'Mitra – June 20, 2025',
+      lastUpdated: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      mood: 'neutral',
+      messages: [
+        {
+          id: '1',
+          text: "Hi, I'm Mitra, your AI companion. I'm here to support you with reminders, wellness, or just a friendly chat. How can I help you today?",
+          sender: 'mitra',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          hasAudio: true
+        },
+        {
+          id: '2',
+          text: "How are my medications today?",
+          sender: 'user',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000 + 5 * 60 * 1000),
+        },
+        {
+          id: '3',
+          text: "Let me check your medication schedule for today. You have three medications scheduled: Amlodipine at 8 AM (completed), Metformin at 12 PM (upcoming), and Lisinopril at 6 PM (scheduled). You're doing great staying on track!",
+          sender: 'mitra',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000 + 6 * 60 * 1000),
+          hasAudio: true
+        }
+      ]
+    },
+    {
+      id: '3',
+      title: 'Mitra – June 19, 2025',
+      lastUpdated: new Date(Date.now() - 48 * 60 * 60 * 1000),
+      mood: 'sad',
+      messages: [
+        {
+          id: '1',
+          text: "Hi, I'm Mitra, your AI companion. I'm here to support you with reminders, wellness, or just a friendly chat. How can I help you today?",
+          sender: 'mitra',
+          timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000),
+          hasAudio: true
+        },
+        {
+          id: '2',
+          text: "I'm feeling a bit lonely today",
+          sender: 'user',
+          timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000 + 10 * 60 * 1000),
+        },
+        {
+          id: '3',
+          text: "I'm sorry to hear you're feeling lonely. That's completely understandable, and I'm here with you. Would you like to talk about what's on your mind, or perhaps I could suggest some activities that might help you feel more connected?",
+          sender: 'mitra',
+          timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000 + 11 * 60 * 1000),
+          hasAudio: true
+        }
+      ]
     }
   ]);
-  
+
   const [inputText, setInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [transcription, setTranscription] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Get current session
+  const currentSession = chatSessions.find(session => session.id === currentSessionId);
+  const messages = currentSession?.messages || [];
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -51,7 +142,17 @@ export const ChatAssistant: React.FC = () => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Update current session with new message
+    setChatSessions(prev => prev.map(session => 
+      session.id === currentSessionId 
+        ? { 
+            ...session, 
+            messages: [...session.messages, userMessage],
+            lastUpdated: new Date()
+          }
+        : session
+    ));
+
     setInputText('');
     setIsTyping(true);
 
@@ -62,7 +163,9 @@ export const ChatAssistant: React.FC = () => {
         "That's a great question! Based on your health profile, I'd recommend checking with your doctor.",
         "I'm here to support you. Would you like me to set a reminder for that?",
         "Thank you for sharing that with me. How are you feeling today?",
-        "I can help you with medication reminders, health tracking, or just have a friendly conversation."
+        "I can help you with medication reminders, health tracking, or just have a friendly conversation.",
+        "That sounds wonderful! Tell me more about what's making you feel that way.",
+        "I'm glad you reached out. Let's work through this together."
       ];
       
       const mitraResponse: Message = {
@@ -73,7 +176,15 @@ export const ChatAssistant: React.FC = () => {
         hasAudio: true
       };
 
-      setMessages(prev => [...prev, mitraResponse]);
+      setChatSessions(prev => prev.map(session => 
+        session.id === currentSessionId 
+          ? { 
+              ...session, 
+              messages: [...session.messages, mitraResponse],
+              lastUpdated: new Date()
+            }
+          : session
+      ));
       setIsTyping(false);
     }, 1500);
   };
@@ -115,6 +226,24 @@ export const ChatAssistant: React.FC = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatDate = (date: Date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      });
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -122,19 +251,203 @@ export const ChatAssistant: React.FC = () => {
     }
   };
 
+  const startNewChat = () => {
+    // Check if current chat has unsaved messages
+    const currentMessages = currentSession?.messages || [];
+    if (currentMessages.length > 1) {
+      setShowSaveModal(true);
+    } else {
+      createNewChat();
+    }
+  };
+
+  const createNewChat = () => {
+    const newSession: ChatSession = {
+      id: Date.now().toString(),
+      title: `Mitra – ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+      lastUpdated: new Date(),
+      mood: 'neutral',
+      messages: [
+        {
+          id: '1',
+          text: "Hi, I'm Mitra, your AI companion. I'm here to support you with reminders, wellness, or just a friendly chat. How can I help you today?",
+          sender: 'mitra',
+          timestamp: new Date(),
+          hasAudio: true
+        }
+      ]
+    };
+
+    setChatSessions(prev => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setShowSaveModal(false);
+  };
+
+  const switchToSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+  };
+
+  const deleteSession = (sessionId: string) => {
+    setChatSessions(prev => prev.filter(session => session.id !== sessionId));
+    setShowDeleteModal(null);
+    
+    // If we deleted the current session, switch to the first available one
+    if (sessionId === currentSessionId) {
+      const remainingSessions = chatSessions.filter(session => session.id !== sessionId);
+      if (remainingSessions.length > 0) {
+        setCurrentSessionId(remainingSessions[0].id);
+      } else {
+        createNewChat();
+      }
+    }
+  };
+
+  const getMoodIcon = (mood: string) => {
+    switch (mood) {
+      case 'happy':
+        return <Smile size={16} className="text-green-600" aria-hidden="true" />;
+      case 'sad':
+        return <Frown size={16} className="text-red-600" aria-hidden="true" />;
+      default:
+        return <Meh size={16} className="text-gray-600" aria-hidden="true" />;
+    }
+  };
+
+  const getMoodColor = (mood: string) => {
+    switch (mood) {
+      case 'happy':
+        return 'border-l-green-400';
+      case 'sad':
+        return 'border-l-red-400';
+      default:
+        return 'border-l-gray-400';
+    }
+  };
+
   return (
-    <main className="flex-1 ml-70 bg-eldercare-background" role="main" aria-label="Chat with Mitra">
-      <div className="h-screen flex flex-col">
+    <main className="flex-1 ml-70 bg-eldercare-background flex" role="main" aria-label="Chat with Mitra">
+      {/* Chat History Sidebar */}
+      <aside 
+        className={`bg-white border-r border-eldercare-primary/20 transition-all duration-300 flex-shrink-0 ${
+          sidebarOpen ? 'w-80' : 'w-0'
+        } overflow-hidden`}
+        role="complementary"
+        aria-label="Chat history"
+      >
+        <div className="h-full flex flex-col">
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-eldercare-primary/10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-nunito font-bold text-eldercare-secondary">
+                Past Conversations
+              </h2>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 hover:bg-eldercare-primary/10 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary lg:hidden"
+                aria-label="Close chat history"
+              >
+                <X size={20} className="text-eldercare-text" />
+              </button>
+            </div>
+            
+            {/* New Chat Button */}
+            <button
+              onClick={startNewChat}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-eldercare-primary hover:bg-eldercare-primary-dark text-white rounded-xl font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
+              aria-label="Start new conversation"
+            >
+              <Plus size={20} aria-hidden="true" />
+              <span>Start New Chat</span>
+            </button>
+          </div>
+
+          {/* Chat Sessions List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {chatSessions.map((session) => (
+              <div
+                key={session.id}
+                className={`p-4 rounded-xl border-2 border-l-4 cursor-pointer transition-all duration-300 hover:shadow-md ${
+                  session.id === currentSessionId
+                    ? 'bg-eldercare-primary/10 border-eldercare-primary shadow-md'
+                    : 'bg-eldercare-background/50 border-eldercare-primary/20 hover:border-eldercare-primary/40'
+                } ${getMoodColor(session.mood)}`}
+                onClick={() => switchToSession(session.id)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Switch to conversation from ${formatDate(session.lastUpdated)}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    switchToSession(session.id);
+                  }
+                }}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-opensans font-semibold text-eldercare-secondary text-sm truncate flex-1">
+                    {session.title}
+                  </h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeleteModal(session.id);
+                    }}
+                    className="p-1 hover:bg-red-100 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 ml-2"
+                    aria-label={`Delete conversation from ${formatDate(session.lastUpdated)}`}
+                    title="Delete conversation"
+                  >
+                    <Trash2 size={14} className="text-red-500" />
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Clock size={12} className="text-eldercare-text-light" aria-hidden="true" />
+                    <span className="text-xs font-opensans text-eldercare-text-light">
+                      {formatDate(session.lastUpdated)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1" title={`Mood: ${session.mood}`}>
+                    {getMoodIcon(session.mood)}
+                  </div>
+                </div>
+                
+                {/* Preview of last message */}
+                {session.messages.length > 1 && (
+                  <div className="mt-2 pt-2 border-t border-eldercare-primary/10">
+                    <p className="text-xs font-opensans text-eldercare-text-light truncate">
+                      {session.messages[session.messages.length - 1].text}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Header - Fixed and Compact */}
         <header className="flex-shrink-0 p-4 bg-eldercare-background border-b border-eldercare-primary/10">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center space-x-3">
+              {!sidebarOpen && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 hover:bg-eldercare-primary/10 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary"
+                  aria-label="Open chat history"
+                >
+                  <Menu size={20} className="text-eldercare-primary" />
+                </button>
+              )}
+              
               <div className="p-2 bg-eldercare-primary/10 rounded-full">
                 <MessageCircle size={24} className="text-eldercare-primary" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-2xl font-nunito font-bold text-eldercare-secondary">
-                  Mitra – Your AI Companion
+                  {currentSession?.title || 'Mitra – Your AI Companion'}
                 </h1>
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" aria-hidden="true"></div>
@@ -282,6 +595,78 @@ export const ChatAssistant: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Save Current Chat Modal */}
+      {showSaveModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-modal-title"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Save size={24} className="text-eldercare-primary" aria-hidden="true" />
+              <h3 id="save-modal-title" className="text-xl font-nunito font-bold text-eldercare-secondary">
+                Start New Chat?
+              </h3>
+            </div>
+            <p className="text-base font-opensans text-eldercare-text mb-6">
+              You have an ongoing conversation. Your current chat will be automatically saved in your chat history.
+            </p>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 px-6 py-3 border-2 border-eldercare-primary text-eldercare-primary rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2 hover:bg-eldercare-primary/5"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createNewChat}
+                className="flex-1 px-6 py-3 bg-eldercare-primary hover:bg-eldercare-primary-dark text-white rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
+              >
+                Start New Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 
+              id="delete-modal-title"
+              className="text-xl font-nunito font-bold text-eldercare-secondary mb-4"
+            >
+              Delete Conversation
+            </h3>
+            <p className="text-base font-opensans text-eldercare-text mb-6">
+              Are you sure you want to delete this conversation? This action cannot be undone.
+            </p>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 text-eldercare-secondary rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-gray-300 focus:ring-offset-2 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteSession(showDeleteModal)}
+                className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-red-500 focus:ring-offset-2"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };
