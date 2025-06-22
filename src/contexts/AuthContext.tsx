@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         console.log('✅ Session found:', session.user.id);
-        await fetchUserProfile(session.user.id);
+        await fetchUserProfile(session.user.id, session.user.email);
         
       } catch (error) {
         console.error('❌ Error initializing auth:', error);
@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔄 Auth state changed:', event);
       
       if (session?.user) {
-        await fetchUserProfile(session.user.id);
+        await fetchUserProfile(session.user.id, session.user.email);
       } else {
         setUser(null);
         setLoading(false);
@@ -104,34 +104,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, userEmail?: string) => {
     try {
       console.log('🔄 Fetching user profile for:', userId);
       
-      // Set timeout for profile fetch
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
-      });
-
-      const fetchPromise = supabase
+      // Use maybeSingle() instead of single() to handle cases where no profile exists
+      const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
-
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        .maybeSingle();
 
       if (error) {
         console.error('❌ Error fetching user profile:', error);
         setUser(null);
-      } else {
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
         console.log('✅ User profile fetched:', data);
         setUser(data);
+        setLoading(false);
+      } else {
+        console.log('🔄 No user profile found, creating default profile...');
+        
+        // Create a default profile for the authenticated user
+        const email = userEmail || `user-${userId}@eldercare.app`;
+        const username = email.split('@')[0];
+        
+        const { data: newProfile, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            email: email,
+            username: username,
+            full_name: username.charAt(0).toUpperCase() + username.slice(1),
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Error creating default user profile:', insertError);
+          setUser(null);
+        } else {
+          console.log('✅ Default user profile created:', newProfile);
+          setUser(newProfile);
+        }
+        
+        setLoading(false);
       }
     } catch (error) {
       console.error('❌ Error fetching user profile:', error);
       setUser(null);
-    } finally {
       setLoading(false);
     }
   };
