@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AuthForm } from './components/AuthForm';
 import { SkipLink } from './components/SkipLink';
 import { Sidebar } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
@@ -13,28 +11,8 @@ import { Caregivers } from './components/Caregivers';
 import { SettingsProfile } from './components/SettingsProfile';
 import { Emergency } from './components/Emergency';
 
-const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState('home');
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
-        <div className="text-center">
-          <img 
-            src="/logo-Photoroom.png" 
-            alt="ElderCare Logo" 
-            className="w-32 h-32 object-contain mx-auto mb-4 animate-pulse"
-          />
-          <p className="text-lg font-opensans text-eldercare-text">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthForm />;
-  }
 
   const renderMainContent = () => {
     switch (activeSection) {
@@ -86,13 +64,5 @@ const AppContent: React.FC = () => {
     </div>
   );
 };
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
 
 export default App;
