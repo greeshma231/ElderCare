@@ -1,29 +1,33 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { generateToken, authenticateToken } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 const { validateSignup, validateLogin } = require('../middleware/validation');
 
 const router = express.Router();
+
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+  });
+};
 
 // @route   POST /api/auth/signup
 // @desc    Register a new user
 // @access  Public
 router.post('/signup', validateSignup, async (req, res) => {
   try {
-    const { username, email, password, fullName, age, gender } = req.body;
-
-    console.log('🔄 Signup attempt for username:', username);
+    const { email, username, password, fullName, age, gender, primaryCaregiver } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ username }, { email }]
+      $or: [{ email }, { username }]
     });
 
     if (existingUser) {
-      const field = existingUser.username === username ? 'username' : 'email';
-      console.log('❌ Signup failed - existing user:', field);
-      
-      return res.status(409).json({
+      const field = existingUser.email === email ? 'email' : 'username';
+      return res.status(400).json({
         success: false,
         message: `User with this ${field} already exists`
       });
@@ -31,37 +35,47 @@ router.post('/signup', validateSignup, async (req, res) => {
 
     // Create new user
     const user = new User({
-      username,
       email,
-      passwordHash: password, // Will be hashed by pre-save middleware
+      username,
+      password,
       fullName,
       age,
-      gender
+      gender,
+      primaryCaregiver
     });
 
     await user.save();
 
-    // Generate JWT token
+    // Generate token
     const token = generateToken(user._id);
 
-    console.log('✅ User created successfully:', user.username);
+    // Update last login
+    await user.updateLastLogin();
 
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: 'User registered successfully',
       data: {
-        user: user.toJSON(),
+        user: {
+          id: user._id,
+          email: user.email,
+          username: user.username,
+          fullName: user.fullName,
+          age: user.age,
+          gender: user.gender,
+          primaryCaregiver: user.primaryCaregiver,
+          createdAt: user.createdAt
+        },
         token
       }
     });
-
   } catch (error) {
-    console.error('❌ Signup error:', error.message);
+    console.error('Signup error:', error);
     
+    // Handle duplicate key errors
     if (error.code === 11000) {
-      // Duplicate key error
       const field = Object.keys(error.keyPattern)[0];
-      return res.status(409).json({
+      return res.status(400).json({
         success: false,
         message: `User with this ${field} already exists`
       });
@@ -69,72 +83,75 @@ router.post('/signup', validateSignup, async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: 'Failed to create user account'
+      message: 'Server error during registration'
     });
   }
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user and get token
+// @desc    Login user
 // @access  Public
 router.post('/login', validateLogin, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    console.log('🔄 Login attempt for:', username);
-
-    // Find user by username or email
-    const user = await User.findByUsernameOrEmail(username);
+    // Find user by email
+    const user = await User.findOne({ email });
 
     if (!user) {
-      console.log('❌ Login failed - user not found');
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
+    // Check if account is active
     if (!user.isActive) {
-      console.log('❌ Login failed - account deactivated');
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
-        message: 'Account is deactivated'
+        message: 'Account is deactivated. Please contact support.'
       });
     }
 
     // Check password
-    const isPasswordValid = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(password);
 
-    if (!isPasswordValid) {
-      console.log('❌ Login failed - invalid password');
-      return res.status(401).json({
+    if (!isMatch) {
+      return res.status(400).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
-    // Update last login
-    await user.updateLastLogin();
-
-    // Generate JWT token
+    // Generate token
     const token = generateToken(user._id);
 
-    console.log('✅ Login successful for:', user.username);
+    // Update last login
+    await user.updateLastLogin();
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user: user.toJSON(),
+        user: {
+          id: user._id,
+          email: user.email,
+          username: user.username,
+          fullName: user.fullName,
+          age: user.age,
+          gender: user.gender,
+          primaryCaregiver: user.primaryCaregiver,
+          lastLogin: user.lastLogin,
+          settings: user.settings
+        },
         token
       }
     });
-
   } catch (error) {
-    console.error('❌ Login error:', error.message);
+    console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Login failed'
+      message: 'Server error during login'
     });
   }
 });
@@ -142,25 +159,40 @@ router.post('/login', validateLogin, async (req, res) => {
 // @route   POST /api/auth/logout
 // @desc    Logout user (client-side token removal)
 // @access  Private
-router.post('/logout', authenticateToken, async (req, res) => {
+router.post('/logout', auth, async (req, res) => {
   try {
-    console.log('🔄 Logout for user:', req.user.username);
-    
-    // In a more advanced implementation, you might:
-    // - Add token to blacklist
-    // - Update user's last activity
-    // - Clear refresh tokens
+    // In a stateless JWT system, logout is handled client-side
+    // This endpoint can be used for logging purposes or token blacklisting if needed
     
     res.json({
       success: true,
-      message: 'Logged out successfully'
+      message: 'Logout successful'
     });
-
   } catch (error) {
-    console.error('❌ Logout error:', error.message);
+    console.error('Logout error:', error);
     res.status(500).json({
       success: false,
-      message: 'Logout failed'
+      message: 'Server error during logout'
+    });
+  }
+});
+
+// @route   GET /api/auth/me
+// @desc    Get current user
+// @access  Private
+router.get('/me', auth, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        user: req.user
+      }
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 });

@@ -2,6 +2,14 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+  },
   username: {
     type: String,
     required: [true, 'Username is required'],
@@ -11,15 +19,7 @@ const userSchema = new mongoose.Schema({
     maxlength: [30, 'Username cannot exceed 30 characters'],
     match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores']
   },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
-  },
-  passwordHash: {
+  password: {
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters']
@@ -38,66 +38,60 @@ const userSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ['Male', 'Female', 'Other'],
-    default: null
+    trim: true
   },
   primaryCaregiver: {
     type: String,
     trim: true,
     maxlength: [100, 'Primary caregiver name cannot exceed 100 characters']
   },
-  profilePicture: {
-    type: String,
-    default: null
-  },
   isActive: {
     type: Boolean,
     default: true
   },
   lastLogin: {
-    type: Date,
-    default: null
+    type: Date
   },
   settings: {
-    voiceAssistant: {
-      type: Boolean,
-      default: true
+    notifications: {
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false }
     },
-    medicationAlerts: {
-      type: Boolean,
-      default: true
+    privacy: {
+      profileVisibility: { type: String, enum: ['public', 'private'], default: 'private' },
+      shareHealthData: { type: Boolean, default: false }
     },
-    appointmentAlerts: {
-      type: Boolean,
-      default: true
+    preferences: {
+      language: { type: String, default: 'en' },
+      timezone: { type: String, default: 'UTC' },
+      theme: { type: String, enum: ['light', 'dark'], default: 'light' }
     }
   }
 }, {
-  timestamps: true, // Adds createdAt and updatedAt
+  timestamps: true,
   toJSON: {
     transform: function(doc, ret) {
-      ret.id = ret._id;
-      delete ret._id;
-      delete ret.__v;
-      delete ret.passwordHash; // Never return password hash
+      delete ret.password;
       return ret;
     }
   }
 });
 
 // Index for better query performance
-userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
+userSchema.index({ username: 1 });
 userSchema.index({ createdAt: -1 });
 
-// Hash password before saving
+// Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
   // Only hash the password if it has been modified (or is new)
-  if (!this.isModified('passwordHash')) return next();
+  if (!this.isModified('password')) return next();
 
   try {
     // Hash password with cost of 12
     const salt = await bcrypt.genSalt(12);
-    this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
+    this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
     next(error);
@@ -106,27 +100,18 @@ userSchema.pre('save', async function(next) {
 
 // Instance method to check password
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.passwordHash);
-  } catch (error) {
-    throw new Error('Password comparison failed');
-  }
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Instance method to update last login
-userSchema.methods.updateLastLogin = async function() {
+userSchema.methods.updateLastLogin = function() {
   this.lastLogin = new Date();
-  return await this.save();
+  return this.save();
 };
 
-// Static method to find user by username or email
-userSchema.statics.findByUsernameOrEmail = function(identifier) {
-  return this.findOne({
-    $or: [
-      { username: identifier },
-      { email: identifier }
-    ]
-  });
+// Static method to find active users
+userSchema.statics.findActive = function() {
+  return this.find({ isActive: true });
 };
 
 module.exports = mongoose.model('User', userSchema);

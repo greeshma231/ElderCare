@@ -1,68 +1,58 @@
-// Global error handling middleware
-const errorHandler = (err, req, res, next) => {
-  console.error('🚨 Global error handler:', err.stack);
-
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid ID format'
-    });
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyPattern)[0];
-    return res.status(409).json({
-      success: false,
-      message: `Duplicate ${field} - this ${field} is already taken`
-    });
-  }
-
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map(val => ({
-      field: val.path,
-      message: val.message
-    }));
-    
-    return res.status(400).json({
-      success: false,
-      message: 'Validation Error',
-      errors
-    });
-  }
-
-  // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token'
-    });
-  }
-
-  if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Token expired'
-    });
-  }
-
-  // Default error
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error'
-  });
-};
-
-// 404 handler
+// 404 Not Found handler
 const notFound = (req, res, next) => {
   const error = new Error(`Not Found - ${req.originalUrl}`);
   res.status(404);
   next(error);
 };
 
+// Global error handler
+const errorHandler = (err, req, res, next) => {
+  let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  let message = err.message;
+
+  // Mongoose bad ObjectId
+  if (err.name === 'CastError' && err.kind === 'ObjectId') {
+    statusCode = 404;
+    message = 'Resource not found';
+  }
+
+  // Mongoose duplicate key
+  if (err.code === 11000) {
+    statusCode = 400;
+    const field = Object.keys(err.keyPattern)[0];
+    message = `Duplicate field value: ${field}`;
+  }
+
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = Object.values(err.errors).map(val => val.message).join(', ');
+  }
+
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Invalid token';
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = 'Token expired';
+  }
+
+  // Log error in development
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error Stack:', err.stack);
+  }
+
+  res.status(statusCode).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+};
+
 module.exports = {
-  errorHandler,
-  notFound
+  notFound,
+  errorHandler
 };

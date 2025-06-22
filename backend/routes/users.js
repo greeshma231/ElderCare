@@ -1,30 +1,26 @@
 const express = require('express');
 const User = require('../models/User');
-const { authenticateToken } = require('../middleware/auth');
-const { validateProfileUpdate } = require('../middleware/validation');
+const auth = require('../middleware/auth');
+const { validateProfileUpdate, validateSettingsUpdate } = require('../middleware/validation');
 
 const router = express.Router();
 
 // @route   GET /api/users/me
 // @desc    Get current user profile
 // @access  Private
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', auth, async (req, res) => {
   try {
-    console.log('🔄 Getting profile for user:', req.user.username);
-
-    // User is already attached to req by auth middleware
     res.json({
       success: true,
       data: {
-        user: req.user.toJSON()
+        user: req.user
       }
     });
-
   } catch (error) {
-    console.error('❌ Get profile error:', error.message);
+    console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get user profile'
+      message: 'Server error'
     });
   }
 });
@@ -32,64 +28,68 @@ router.get('/me', authenticateToken, async (req, res) => {
 // @route   PUT /api/users/me
 // @desc    Update current user profile
 // @access  Private
-router.put('/me', authenticateToken, validateProfileUpdate, async (req, res) => {
+router.put('/me', auth, validateProfileUpdate, async (req, res) => {
   try {
-    const { fullName, age, gender, primaryCaregiver } = req.body;
-    
-    console.log('🔄 Updating profile for user:', req.user.username);
+    const { email, username, fullName, age, gender, primaryCaregiver } = req.body;
 
-    // Update user fields
-    const updateFields = {};
-    if (fullName !== undefined) updateFields.fullName = fullName;
-    if (age !== undefined) updateFields.age = age;
-    if (gender !== undefined) updateFields.gender = gender;
-    if (primaryCaregiver !== undefined) updateFields.primaryCaregiver = primaryCaregiver;
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      updateFields,
-      { 
-        new: true, // Return updated document
-        runValidators: true // Run schema validators
+    // Check if email or username is being changed and already exists
+    if (email && email !== req.user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
       }
-    ).select('-passwordHash');
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
     }
 
-    console.log('✅ Profile updated successfully for:', updatedUser.username);
+    if (username && username !== req.user.username) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this username already exists'
+        });
+      }
+    }
+
+    // Update user
+    const updateData = {};
+    if (email) updateData.email = email;
+    if (username) updateData.username = username;
+    if (fullName) updateData.fullName = fullName;
+    if (age !== undefined) updateData.age = age;
+    if (gender) updateData.gender = gender;
+    if (primaryCaregiver !== undefined) updateData.primaryCaregiver = primaryCaregiver;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
 
     res.json({
       success: true,
       message: 'Profile updated successfully',
       data: {
-        user: updatedUser.toJSON()
+        user
       }
     });
-
   } catch (error) {
-    console.error('❌ Update profile error:', error.message);
+    console.error('Update profile error:', error);
     
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => ({
-        field: err.path,
-        message: err.message
-      }));
-      
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors
+        message: `User with this ${field} already exists`
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Failed to update profile'
+      message: 'Server error during profile update'
     });
   }
 });
@@ -97,39 +97,33 @@ router.put('/me', authenticateToken, validateProfileUpdate, async (req, res) => 
 // @route   PUT /api/users/me/settings
 // @desc    Update user settings
 // @access  Private
-router.put('/me/settings', authenticateToken, async (req, res) => {
+router.put('/me/settings', auth, validateSettingsUpdate, async (req, res) => {
   try {
-    const { voiceAssistant, medicationAlerts, appointmentAlerts } = req.body;
-    
-    console.log('🔄 Updating settings for user:', req.user.username);
+    const { notifications, privacy, preferences } = req.body;
 
-    // Build settings update object
-    const settingsUpdate = {};
-    if (voiceAssistant !== undefined) settingsUpdate['settings.voiceAssistant'] = voiceAssistant;
-    if (medicationAlerts !== undefined) settingsUpdate['settings.medicationAlerts'] = medicationAlerts;
-    if (appointmentAlerts !== undefined) settingsUpdate['settings.appointmentAlerts'] = appointmentAlerts;
+    const updateData = {};
+    if (notifications) updateData['settings.notifications'] = { ...req.user.settings.notifications, ...notifications };
+    if (privacy) updateData['settings.privacy'] = { ...req.user.settings.privacy, ...privacy };
+    if (preferences) updateData['settings.preferences'] = { ...req.user.settings.preferences, ...preferences };
 
-    const updatedUser = await User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
       req.user._id,
-      settingsUpdate,
-      { new: true }
-    ).select('-passwordHash');
-
-    console.log('✅ Settings updated successfully for:', updatedUser.username);
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
 
     res.json({
       success: true,
       message: 'Settings updated successfully',
       data: {
-        user: updatedUser.toJSON()
+        user
       }
     });
-
   } catch (error) {
-    console.error('❌ Update settings error:', error.message);
+    console.error('Update settings error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update settings'
+      message: 'Server error during settings update'
     });
   }
 });
@@ -137,25 +131,48 @@ router.put('/me/settings', authenticateToken, async (req, res) => {
 // @route   DELETE /api/users/me
 // @desc    Deactivate user account
 // @access  Private
-router.delete('/me', authenticateToken, async (req, res) => {
+router.delete('/me', auth, async (req, res) => {
   try {
-    console.log('🔄 Deactivating account for user:', req.user.username);
-
-    // Soft delete - just deactivate the account
     await User.findByIdAndUpdate(req.user._id, { isActive: false });
-
-    console.log('✅ Account deactivated for:', req.user.username);
 
     res.json({
       success: true,
       message: 'Account deactivated successfully'
     });
-
   } catch (error) {
-    console.error('❌ Account deactivation error:', error.message);
+    console.error('Deactivate account error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to deactivate account'
+      message: 'Server error during account deactivation'
+    });
+  }
+});
+
+// @route   GET /api/users/stats
+// @desc    Get user statistics (for admin or analytics)
+// @access  Private
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const recentUsers = await User.countDocuments({
+      createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers: totalUsers - activeUsers,
+        recentUsers
+      }
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 });

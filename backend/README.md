@@ -1,181 +1,253 @@
 # ElderCare Backend API
 
-A secure Express.js backend with MongoDB Atlas integration for the ElderCare application.
+A robust Node.js/Express backend API for the ElderCare application with MongoDB Atlas integration.
 
-## 🚀 Features
+## Features
 
-- **Secure Authentication**: JWT-based authentication with bcrypt password hashing
-- **MongoDB Atlas Integration**: Cloud database with Mongoose ODM
-- **Input Validation**: Comprehensive validation using express-validator
-- **Rate Limiting**: Protection against brute force attacks
-- **Security Headers**: Helmet.js for security best practices
-- **Error Handling**: Centralized error handling with meaningful responses
-- **CORS Support**: Configured for frontend integration
-- **Logging**: Morgan for request logging
+- **Authentication & Authorization**: JWT-based auth with secure password hashing
+- **User Management**: Complete user profile and settings management
+- **Security**: Rate limiting, CORS, helmet security headers
+- **Validation**: Comprehensive input validation with express-validator
+- **Error Handling**: Centralized error handling with detailed responses
+- **Database**: MongoDB with Mongoose ODM
+- **Logging**: Morgan HTTP request logging
+- **Environment**: Configurable environments with dotenv
 
-## 📋 API Endpoints
+## Tech Stack
 
-### Authentication
-- `POST /api/auth/signup` - Create a new user account
-- `POST /api/auth/login` - Authenticate user and get JWT token
-- `POST /api/auth/logout` - Logout user (client-side token removal)
+- **Runtime**: Node.js 16+
+- **Framework**: Express.js
+- **Database**: MongoDB Atlas
+- **ODM**: Mongoose
+- **Authentication**: JWT (jsonwebtoken)
+- **Password Hashing**: bcryptjs
+- **Validation**: express-validator
+- **Security**: helmet, cors, express-rate-limit
+- **Logging**: morgan
+- **Development**: nodemon
 
-### User Management
-- `GET /api/users/me` - Get current user profile
-- `PUT /api/users/me` - Update user profile
-- `PUT /api/users/me/settings` - Update user settings
-- `DELETE /api/users/me` - Deactivate user account
+## Quick Start
+
+### Prerequisites
+
+- Node.js 16 or higher
+- MongoDB Atlas account (or local MongoDB)
+- npm or yarn
+
+### Installation
+
+1. **Clone and navigate to backend directory**
+   ```bash
+   cd backend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Update `.env` with your configuration:
+   ```env
+   NODE_ENV=development
+   PORT=3001
+   FRONTEND_URL=http://localhost:5173
+   MONGODB_URI=your-mongodb-connection-string
+   JWT_SECRET=your-super-secret-jwt-key
+   JWT_EXPIRES_IN=7d
+   ```
+
+4. **Start the server**
+   ```bash
+   # Development mode with auto-reload
+   npm run dev
+   
+   # Production mode
+   npm start
+   ```
+
+## API Endpoints
+
+### Authentication Routes (`/api/auth`)
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|---------|
+| POST | `/signup` | Register new user | Public |
+| POST | `/login` | User login | Public |
+| POST | `/logout` | User logout | Private |
+| GET | `/me` | Get current user | Private |
+
+### User Routes (`/api/users`)
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|---------|
+| GET | `/me` | Get user profile | Private |
+| PUT | `/me` | Update user profile | Private |
+| PUT | `/me/settings` | Update user settings | Private |
+| DELETE | `/me` | Deactivate account | Private |
+| GET | `/stats` | Get user statistics | Private |
 
 ### Health Check
-- `GET /health` - API health status
 
-## 🛠️ Setup Instructions
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|---------|
+| GET | `/health` | Server health status | Public |
 
-### 1. Install Dependencies
+## Request/Response Examples
+
+### User Registration
 ```bash
-cd backend
-npm install
+POST /api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "username": "johndoe",
+  "password": "SecurePass123",
+  "fullName": "John Doe",
+  "age": 65,
+  "gender": "Male",
+  "primaryCaregiver": "Jane Doe"
+}
 ```
 
-### 2. Environment Configuration
-Copy `.env.example` to `.env` and update the values:
+### User Login
 ```bash
-cp .env.example .env
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "SecurePass123"
+}
 ```
 
-Required environment variables:
-- `MONGODB_URI` - Your MongoDB Atlas connection string
-- `JWT_SECRET` - Secret key for JWT tokens
-- `PORT` - Server port (default: 5000)
-- `FRONTEND_URL` - Frontend URL for CORS
-
-### 3. Start the Server
-
-Development mode:
+### Update Profile
 ```bash
-npm run dev
+PUT /api/users/me
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "fullName": "John Smith",
+  "age": 66,
+  "primaryCaregiver": "Jane Smith"
+}
 ```
 
-Production mode:
-```bash
-npm start
-```
-
-## 🔐 Security Features
-
-- **Password Hashing**: bcrypt with salt rounds of 12
-- **JWT Authentication**: Secure token-based authentication
-- **Rate Limiting**: 
-  - General: 100 requests per 15 minutes
-  - Auth endpoints: 5 attempts per 15 minutes
-- **Input Validation**: Comprehensive validation rules
-- **Security Headers**: Helmet.js protection
-- **CORS Configuration**: Restricted to frontend domain
-
-## 📊 Database Schema
+## Database Schema
 
 ### User Model
 ```javascript
 {
-  username: String (unique, required),
-  email: String (unique, required),
-  passwordHash: String (required),
+  email: String (required, unique),
+  username: String (required, unique),
+  password: String (required, hashed),
   fullName: String (required),
   age: Number (optional),
-  gender: String (optional),
+  gender: String (enum: Male/Female/Other),
   primaryCaregiver: String (optional),
   isActive: Boolean (default: true),
   lastLogin: Date,
   settings: {
-    voiceAssistant: Boolean,
-    medicationAlerts: Boolean,
-    appointmentAlerts: Boolean
+    notifications: {
+      email: Boolean,
+      push: Boolean,
+      sms: Boolean
+    },
+    privacy: {
+      profileVisibility: String (public/private),
+      shareHealthData: Boolean
+    },
+    preferences: {
+      language: String,
+      timezone: String,
+      theme: String (light/dark)
+    }
   },
   createdAt: Date,
   updatedAt: Date
 }
 ```
 
-## 🧪 Testing the API
+## Security Features
 
-### Health Check
+- **Rate Limiting**: 100 requests/15min general, 5 requests/15min auth
+- **Password Security**: bcrypt with salt rounds of 12
+- **JWT Security**: Configurable expiration and secret
+- **Input Validation**: Comprehensive validation for all inputs
+- **CORS**: Configured for frontend origin
+- **Helmet**: Security headers protection
+- **Error Handling**: No sensitive data exposure
+
+## Development
+
+### Scripts
 ```bash
-curl http://localhost:5000/health
+npm run dev      # Start with nodemon (auto-reload)
+npm start        # Start production server
+npm test         # Run tests (placeholder)
 ```
 
-### User Signup
-```bash
-curl -X POST http://localhost:5000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "Test123!",
-    "fullName": "Test User",
-    "age": 65,
-    "gender": "Male"
-  }'
-```
+### Environment Variables
+- `NODE_ENV`: Environment (development/production)
+- `PORT`: Server port (default: 3001)
+- `MONGODB_URI`: MongoDB connection string
+- `JWT_SECRET`: JWT signing secret
+- `JWT_EXPIRES_IN`: JWT expiration time
+- `FRONTEND_URL`: Frontend URL for CORS
 
-### User Login
-```bash
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "Test123!"
-  }'
-```
-
-### Get Profile (with JWT token)
-```bash
-curl -X GET http://localhost:5000/api/users/me \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-## 🚨 Error Handling
-
-The API returns consistent error responses:
-
-```javascript
+### Error Handling
+The API uses centralized error handling with consistent response format:
+```json
 {
   "success": false,
   "message": "Error description",
-  "errors": [
-    {
-      "field": "fieldName",
-      "message": "Specific error message"
-    }
-  ]
+  "errors": [] // Validation errors if applicable
 }
 ```
 
-## 📝 Logging
+### Validation
+All inputs are validated using express-validator with detailed error messages for:
+- Email format and uniqueness
+- Username format and uniqueness
+- Password strength requirements
+- Name format validation
+- Age range validation
+- Gender enum validation
 
-- Development: Detailed request logging with Morgan 'dev' format
-- Production: Combined log format for better monitoring
+## Production Deployment
 
-## 🔧 Environment Variables
+1. **Environment Setup**
+   - Set `NODE_ENV=production`
+   - Use strong JWT secret
+   - Configure MongoDB Atlas connection
+   - Set appropriate CORS origins
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MONGODB_URI` | MongoDB Atlas connection string | Required |
-| `JWT_SECRET` | Secret for JWT token signing | Required |
-| `JWT_EXPIRES_IN` | JWT token expiration time | 7d |
-| `PORT` | Server port | 5000 |
-| `NODE_ENV` | Environment mode | development |
-| `FRONTEND_URL` | Frontend URL for CORS | http://localhost:5173 |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window | 900000 (15 min) |
-| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window | 100 |
+2. **Security Considerations**
+   - Use HTTPS in production
+   - Implement additional rate limiting if needed
+   - Monitor and log security events
+   - Regular security updates
 
-## 🚀 Deployment
+3. **Performance**
+   - Enable MongoDB indexes
+   - Implement caching if needed
+   - Monitor memory usage
+   - Use PM2 for process management
 
-1. Set environment variables in your hosting platform
-2. Ensure MongoDB Atlas is accessible from your hosting IP
-3. Update CORS settings for production frontend URL
-4. Set `NODE_ENV=production`
-5. Use a process manager like PM2 for production
+## Contributing
 
-## 📞 Support
+1. Follow existing code style
+2. Add validation for new endpoints
+3. Include error handling
+4. Update documentation
+5. Test thoroughly
 
-For issues or questions, please check the API documentation or contact the development team.
+## License
+
+MIT License - see LICENSE file for details
