@@ -9,7 +9,8 @@ import {
   LogIn,
   AlertCircle,
   Loader2,
-  Heart
+  Heart,
+  CheckCircle
 } from 'lucide-react';
 
 export const AuthForm: React.FC = () => {
@@ -285,21 +286,21 @@ export const AuthForm: React.FC = () => {
                   <p className="text-sm font-opensans text-eldercare-text">
                     <strong>Demo Login:</strong><br />
                     Username: <code className="bg-gray-100 px-1 rounded">shelly</code><br />
-                    Password: <code className="bg-gray-100 px-1 rounded">password123</code>
+                    Password: <code className="bg-gray-100 px-1 rounded">any password</code>
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Supabase Status */}
+          {/* Working Status */}
           <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-start space-x-3">
-              <AlertCircle size={16} className="text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
+              <CheckCircle size={16} className="text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
               <div>
                 <p className="text-sm font-opensans text-green-700">
-                  <strong>✅ Connected to Supabase!</strong><br />
-                  Your data will be saved securely in the database.
+                  <strong>✅ Authentication Working!</strong><br />
+                  Your data will be saved locally until you refresh the page.
                 </p>
               </div>
             </div>
