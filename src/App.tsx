@@ -18,12 +18,6 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [activeSection, setActiveSection] = React.useState('home');
 
-  console.log('🔍 App State:', { 
-    loading, 
-    hasUser: !!user, 
-    username: user?.username || 'none' 
-  });
-
   // Show loading spinner while auth is initializing
   if (loading) {
     return (
@@ -35,11 +29,8 @@ const AppContent: React.FC = () => {
 
   // Show auth form if no user is logged in
   if (!user) {
-    console.log('👤 No user found, showing auth form');
     return <AuthForm />;
   }
-
-  console.log('✅ User authenticated, showing main app');
 
   const renderMainContent = () => {
     switch (activeSection) {
