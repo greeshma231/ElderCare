@@ -12,6 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Database types
 export interface User {
   id: string;
+  email: string;
   username: string;
   full_name: string;
   age?: number;
