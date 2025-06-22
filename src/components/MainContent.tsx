@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ErrorMessage } from './ErrorMessage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface MainContentProps {
   activeSection?: string;
@@ -40,6 +41,7 @@ interface Alert {
 }
 
 export const MainContent: React.FC<MainContentProps> = ({ activeSection = 'home' }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -111,7 +113,24 @@ export const MainContent: React.FC<MainContentProps> = ({ activeSection = 'home'
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 21) return 'Good evening';
+    return 'Good night';
+  };
+
+  // Get user's first name for greeting
+  const getUserFirstName = () => {
+    if (!user?.full_name) return 'there';
+    return user.full_name.split(' ')[0];
+  };
+
+  // Get appropriate emoji for time of day
+  const getTimeEmoji = () => {
+    const hour = new Date().getHours();
+    if (hour < 6) return '🌙'; // Late night/early morning
+    if (hour < 12) return '🌅'; // Morning
+    if (hour < 17) return '☀️'; // Afternoon
+    if (hour < 21) return '🌆'; // Evening
+    return '🌙'; // Night
   };
 
   const toggleScheduleItem = (id: string) => {
@@ -188,7 +207,7 @@ export const MainContent: React.FC<MainContentProps> = ({ activeSection = 'home'
         {/* Personalized Greeting Header */}
         <header className="mb-8">
           <h1 className="text-4xl font-nunito font-bold text-eldercare-secondary mb-2">
-            {getTimeOfDayGreeting()}, Shelly! 👋
+            {getTimeOfDayGreeting()}, {getUserFirstName()}! {getTimeEmoji()}
           </h1>
           <p className="text-lg font-opensans text-eldercare-text-light">
             Here's your health overview for today
