@@ -135,42 +135,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password, // Use the actual password provided by the user
+          password,
         });
 
         if (error) {
-          console.log('❌ Demo user auth failed, trying to create account');
-          
-          // Try to create the demo user account
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password, // Use the actual password provided by the user
-          });
-
-          if (signUpError) {
-            console.error('❌ Failed to create demo user:', signUpError);
-            setLoading(false);
-            return { error: 'Demo user setup failed' };
-          }
-
-          if (signUpData.user) {
-            // Create the user profile
-            const { error: profileError } = await supabase
-              .from('users')
-              .insert({
-                id: signUpData.user.id,
-                username: 'shelly',
-                password_hash: 'demo_hash',
-                full_name: 'Shelly Thompson',
-                age: 72,
-                gender: 'Female',
-                primary_caregiver: 'Sarah Johnson'
-              });
-
-            if (profileError) {
-              console.error('❌ Failed to create demo user profile:', profileError);
-            }
-          }
+          console.log('❌ Demo user auth failed:', error.message);
+          setLoading(false);
+          return { error: 'Invalid username or password' };
         }
 
         console.log('✅ Demo user sign in successful');
@@ -196,13 +167,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password, // Use the actual password provided by the user
+        password,
       });
 
       if (error) {
         console.log('❌ Auth sign in failed:', error);
         setLoading(false);
-        return { error: 'Authentication failed' };
+        return { error: 'Invalid username or password' };
       }
 
       console.log('✅ Sign in successful');
@@ -239,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Create auth user
       const { data, error } = await supabase.auth.signUp({
         email,
-        password, // Use the actual password provided by the user
+        password,
       });
 
       if (error) {
