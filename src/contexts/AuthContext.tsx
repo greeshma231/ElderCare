@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('users')
         .select('id, password_hash')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (userError || !userData) {
         return { error: 'Invalid username or password' };
@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('users')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (existingUser) {
         return { error: 'Username already exists' };
