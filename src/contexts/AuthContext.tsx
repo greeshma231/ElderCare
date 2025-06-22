@@ -26,8 +26,8 @@ export const useAuth = () => {
   return context;
 };
 
-// Demo users for testing
-const DEMO_USERS = [
+// In-memory user storage (resets on page refresh)
+let inMemoryUsers: Array<{ id: string; username: string; password: string; full_name: string; age?: number; gender?: string }> = [
   {
     id: '1',
     username: 'shelly',
@@ -46,20 +46,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 800));
     
-    // Check demo users
-    const demoUser = DEMO_USERS.find(u => u.username === username && u.password === password);
+    // Find user in memory
+    const foundUser = inMemoryUsers.find(u => u.username === username && u.password === password);
     
-    if (demoUser) {
-      const { password: _, ...userWithoutPassword } = demoUser;
+    if (foundUser) {
+      const { password: _, ...userWithoutPassword } = foundUser;
       setUser(userWithoutPassword);
       setLoading(false);
       return {};
     }
     
     setLoading(false);
-    return { error: 'Invalid username or password. Try: shelly / password123' };
+    return { error: 'Invalid username or password' };
   };
 
   const signUp = async (username: string, password: string, fullName: string, age?: number, gender?: string) => {
@@ -68,30 +68,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Check if username exists
-    const existingUser = DEMO_USERS.find(u => u.username === username);
+    // Check if username already exists
+    const existingUser = inMemoryUsers.find(u => u.username === username);
     if (existingUser) {
       setLoading(false);
       return { error: 'Username already exists' };
     }
     
-    // Create new user
+    // Create new user and add to memory
     const newUser = {
       id: Date.now().toString(),
       username,
+      password,
       full_name: fullName,
       age,
       gender
     };
     
-    setUser(newUser);
+    // Add to in-memory storage
+    inMemoryUsers.push(newUser);
+    
+    // Set as current user (without password)
+    const { password: _, ...userWithoutPassword } = newUser;
+    setUser(userWithoutPassword);
     setLoading(false);
     return {};
   };
 
   const signOut = async () => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
     setUser(null);
     setLoading(false);
   };

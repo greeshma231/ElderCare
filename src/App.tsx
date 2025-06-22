@@ -14,7 +14,7 @@ import { SettingsProfile } from './components/SettingsProfile';
 import { Emergency } from './components/Emergency';
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = React.useState('home');
 
   // Show auth form if no user is logged in

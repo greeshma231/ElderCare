@@ -292,8 +292,20 @@ export const AuthForm: React.FC = () => {
             </div>
           )}
 
+          {/* Info about temporary storage */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <AlertCircle size={16} className="text-blue-600 mt-1 flex-shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-opensans text-blue-700">
+                  <strong>Note:</strong> This is a demo version. Your account will be saved temporarily and will reset when you refresh the page.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Help Text */}
-          <div className="mt-6 p-4 bg-eldercare-background/50 rounded-lg">
+          <div className="mt-4 p-4 bg-eldercare-background/50 rounded-lg">
             <div className="flex items-start space-x-3">
               <Heart size={16} className="text-eldercare-primary mt-1 flex-shrink-0" aria-hidden="true" />
               <div>
