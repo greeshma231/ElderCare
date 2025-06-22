@@ -130,13 +130,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (username === 'shelly') {
         // Create a consistent email for the demo user
         const email = 'shelly@eldercare.demo';
-        const demoPassword = 'eldercare123';
         
         console.log('🔄 Demo user login attempt');
         
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password: demoPassword,
+          password, // Use the actual password provided by the user
         });
 
         if (error) {
@@ -145,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Try to create the demo user account
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
-            password: demoPassword,
+            password, // Use the actual password provided by the user
           });
 
           if (signUpError) {
@@ -194,11 +193,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Create email from username for auth
       const email = `${username}@eldercare.app`;
-      const authPassword = 'eldercare123'; // Fixed password for demo
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password: authPassword,
+        password, // Use the actual password provided by the user
       });
 
       if (error) {
@@ -237,12 +235,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Create email from username
       const email = `${username}@eldercare.app`;
-      const authPassword = 'eldercare123'; // Fixed password for demo
 
       // Create auth user
       const { data, error } = await supabase.auth.signUp({
         email,
-        password: authPassword,
+        password, // Use the actual password provided by the user
       });
 
       if (error) {
