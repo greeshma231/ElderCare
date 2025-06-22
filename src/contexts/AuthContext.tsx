@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         fetchUserProfile(session.user.id);
       } else {
+        setUser(null);
         setLoading(false);
       }
     });
@@ -55,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -63,11 +65,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        // If user profile doesn't exist, sign out the auth user
+        await supabase.auth.signOut();
+        setUser(null);
       } else {
         setUser(data);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // If there's an error, sign out the auth user
+      await supabase.auth.signOut();
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -81,19 +89,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id')
-        .eq('username', username);
+        .eq('username', username)
+        .single();
 
-      if (userError) {
-        console.error('Error fetching user:', userError);
-        return { error: 'Invalid username or password' };
-      }
-
-      if (!userData || userData.length === 0) {
+      if (userError || !userData) {
         return { error: 'Invalid username or password' };
       }
 
       // Use the user ID as email for Supabase auth (since we're using username/password)
-      const email = `${userData[0].id}@eldercare.local`;
+      const email = `${userData.id}@eldercare.local`;
       
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -106,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {};
     } catch (error) {
+      console.error('Sign in error:', error);
       return { error: 'An unexpected error occurred' };
     } finally {
       setLoading(false);
@@ -120,14 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('username')
-        .eq('username', username);
+        .eq('username', username)
+        .single();
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking username:', checkError);
-        return { error: 'Failed to check username availability' };
-      }
-
-      if (existingUser && existingUser.length > 0) {
+      if (existingUser) {
         return { error: 'Username already exists' };
       }
 
@@ -175,7 +176,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    setLoading(true);
     await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setLoading(false);
   };
 
   const value = {
