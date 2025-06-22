@@ -18,6 +18,7 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [activeSection, setActiveSection] = React.useState('home');
 
+  // Show loading spinner while auth is initializing
   if (loading) {
     return (
       <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
@@ -26,6 +27,7 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Show auth form if no user is logged in
   if (!user) {
     return <AuthForm />;
   }

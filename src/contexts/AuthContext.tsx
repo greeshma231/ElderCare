@@ -31,31 +31,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initializeAuth = async () => {
       try {
-        console.log('Initializing auth...');
+        console.log('🔄 Initializing auth...');
         
         // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (error) {
-          console.error('Error getting session:', error);
+          console.error('❌ Error getting session:', error);
+          setUser(null);
           setLoading(false);
           return;
         }
 
-        console.log('Initial session:', session?.user?.id || 'No session');
-        setSession(session);
-        
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          console.log('No session found, showing login');
+        if (!session) {
+          console.log('❌ No session found, showing login');
+          setUser(null);
           setLoading(false);
+          return;
         }
+
+        console.log('✅ Session found:', session.user.id);
+        setSession(session);
+        await fetchUserProfile(session.user.id);
+        
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('❌ Error initializing auth:', error);
         if (mounted) {
+          setUser(null);
           setLoading(false);
         }
       }
@@ -69,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log('Auth state changed:', event, session?.user?.id || 'No user');
+      console.log('🔄 Auth state changed:', event, session?.user?.id || 'No user');
       
       setSession(session);
       
@@ -89,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      console.log('Fetching user profile for:', userId);
+      console.log('🔄 Fetching user profile for:', userId);
       
       const { data, error } = await supabase
         .from('users')
@@ -98,14 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('❌ Error fetching user profile:', error);
         setUser(null);
       } else {
-        console.log('User profile fetched:', data);
+        console.log('✅ User profile fetched:', data);
         setUser(data);
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('❌ Error fetching user profile:', error);
       setUser(null);
     } finally {
       setLoading(false);
@@ -115,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (username: string, password: string) => {
     try {
       setLoading(true);
-      console.log('Attempting sign in for username:', username);
+      console.log('🔄 Attempting sign in for username:', username);
       
       // First, check if this user exists in our users table
       const { data: userData, error: userError } = await supabase
@@ -125,15 +132,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (userError || !userData) {
-        console.log('User not found in database');
+        console.log('❌ User not found in database');
+        setLoading(false);
         return { error: 'Invalid username or password' };
       }
 
-      console.log('Found user in database:', userData);
+      console.log('✅ Found user in database:', userData);
 
-      // For demo purposes, we'll accept any password for existing users
-      // In production, you'd verify the password hash
-      const email = `${userData.id}@eldercare.app`;
+      // Create email from user ID for consistent auth
+      const email = `${username}@eldercare.app`;
       
       // Try to sign in with Supabase auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -142,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (authError) {
-        console.log('Auth user not found, creating auth account for existing user');
+        console.log('🔄 Auth user not found, creating auth account for existing user');
         
         // If auth user doesn't exist, create one for this existing user
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -151,27 +158,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (signUpError) {
-          console.error('Failed to create auth account:', signUpError);
+          console.error('❌ Failed to create auth account:', signUpError);
+          setLoading(false);
           return { error: 'Authentication failed' };
         }
 
-        console.log('Created auth account for existing user');
+        console.log('✅ Created auth account for existing user');
       }
 
-      console.log('Sign in successful');
+      console.log('✅ Sign in successful');
       return {};
     } catch (error) {
-      console.error('Sign in error:', error);
-      return { error: 'An unexpected error occurred' };
-    } finally {
+      console.error('❌ Sign in error:', error);
       setLoading(false);
+      return { error: 'An unexpected error occurred' };
     }
   };
 
   const signUp = async (username: string, password: string, fullName: string, age?: number, gender?: string) => {
     try {
       setLoading(true);
-      console.log('Attempting sign up for username:', username);
+      console.log('🔄 Attempting sign up for username:', username);
 
       // Check if username already exists
       const { data: existingUser, error: checkError } = await supabase
@@ -181,38 +188,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (existingUser) {
-        console.log('Username already exists');
+        console.log('❌ Username already exists');
+        setLoading(false);
         return { error: 'Username already exists' };
       }
 
-      // Generate a unique email for this user
-      const uniqueId = crypto.randomUUID();
-      const email = `${uniqueId}@eldercare.app`;
+      // Create email from username for consistent auth
+      const email = `${username}@eldercare.app`;
 
-      console.log('Creating auth user with email:', email);
+      console.log('🔄 Creating auth user with email:', email);
 
       // Step 1: Create Supabase auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password: 'eldercare_password_2024', // Fixed password for demo
+        password,
       });
 
-      if (authError) {
-        console.error('Auth signup error:', authError);
-        return { error: authError.message };
+      if (error) {
+        console.error('❌ Auth signup error:', error);
+        setLoading(false);
+        return { error: error.message };
       }
 
-      if (!authData.user) {
+      if (!data?.user?.id) {
+        console.error('❌ No user ID returned from auth signup');
+        setLoading(false);
         return { error: 'Failed to create authentication account' };
       }
 
-      console.log('Auth user created:', authData.user.id);
+      console.log('✅ Auth user created:', data.user.id);
 
-      // Step 2: Create user profile in our users table
+      // Step 2: Insert user profile using the authenticated user's ID
       const { error: insertError } = await supabase
         .from('users')
         .insert({
-          id: authData.user.id,
+          id: data.user.id, // This is critical for RLS policy
           username,
           password_hash: 'hashed_password', // In production, hash the actual password
           full_name: fullName,
@@ -221,31 +231,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
       if (insertError) {
-        console.error('Error creating user record:', insertError);
+        console.error('❌ Error creating user record:', insertError);
         // Clean up the auth user if profile creation fails
         await supabase.auth.signOut();
+        setLoading(false);
         return { error: 'Failed to create user profile. Please try again.' };
       }
 
-      console.log('User profile created successfully');
+      console.log('✅ User profile created successfully');
       return {};
     } catch (error) {
-      console.error('Sign up error:', error);
-      return { error: 'An unexpected error occurred' };
-    } finally {
+      console.error('❌ Sign up error:', error);
       setLoading(false);
+      return { error: 'An unexpected error occurred' };
     }
   };
 
   const signOut = async () => {
     try {
       setLoading(true);
-      console.log('Signing out...');
+      console.log('🔄 Signing out...');
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('❌ Sign out error:', error);
     } finally {
       setLoading(false);
     }
