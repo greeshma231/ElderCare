@@ -81,15 +81,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id')
-        .eq('username', username)
-        .single();
+        .eq('username', username);
 
-      if (userError || !userData) {
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        return { error: 'Invalid username or password' };
+      }
+
+      if (!userData || userData.length === 0) {
         return { error: 'Invalid username or password' };
       }
 
       // Use the user ID as email for Supabase auth (since we're using username/password)
-      const email = `${userData.id}@eldercare.local`;
+      const email = `${userData[0].id}@eldercare.local`;
       
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -113,35 +117,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
 
       // Check if username already exists
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('username')
-        .eq('username', username)
-        .single();
+        .eq('username', username);
 
-      if (existingUser) {
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking username:', checkError);
+        return { error: 'Failed to check username availability' };
+      }
+
+      if (existingUser && existingUser.length > 0) {
         return { error: 'Username already exists' };
       }
 
-      // Create a temporary user record to get the ID
-      const { data: tempUser, error: tempUserError } = await supabase
-        .from('users')
-        .insert({
-          username,
-          password_hash: 'temp', // Will be updated after auth user creation
-          full_name: fullName,
-          age,
-          gender,
-        })
-        .select('id')
-        .single();
-
-      if (tempUserError || !tempUser) {
-        return { error: 'Failed to create user account' };
-      }
-
-      // Use the user ID as email for Supabase auth
-      const email = `${tempUser.id}@eldercare.local`;
+      // Generate a unique email for Supabase auth
+      const uniqueId = crypto.randomUUID();
+      const email = `${uniqueId}@eldercare.local`;
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -149,28 +141,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (authError) {
-        // Clean up the temp user record
-        await supabase.from('users').delete().eq('id', tempUser.id);
         return { error: authError.message };
       }
 
-      // Update the user record with the actual auth user ID
+      // Create the user record with the auth user ID
       if (authData.user) {
-        const { error: updateError } = await supabase
+        const { error: insertError } = await supabase
           .from('users')
-          .update({
+          .insert({
             id: authData.user.id,
+            username,
             password_hash: 'hashed', // In production, this would be properly hashed
-          })
-          .eq('id', tempUser.id);
+            full_name: fullName,
+            age,
+            gender,
+          });
 
-        if (updateError) {
-          console.error('Error updating user record:', updateError);
+        if (insertError) {
+          console.error('Error creating user record:', insertError);
+          // Clean up the auth user if profile creation fails
+          await supabase.auth.signOut();
+          return { error: 'Failed to create user profile' };
         }
       }
 
       return {};
     } catch (error) {
+      console.error('Sign up error:', error);
       return { error: 'An unexpected error occurred' };
     } finally {
       setLoading(false);
