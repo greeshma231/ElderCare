@@ -18,7 +18,7 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [activeSection, setActiveSection] = React.useState('home');
 
-  console.log('🔄 App render state:', { loading, user: !!user });
+  console.log("Current State =>", { loading, user: !!user });
 
   // Show loading spinner while auth is initializing
   if (loading) {
