@@ -129,6 +129,7 @@ export const AuthForm: React.FC = () => {
                   className="w-full pl-10 pr-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
                   placeholder="Enter your username"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -151,12 +152,14 @@ export const AuthForm: React.FC = () => {
                   className="w-full pl-10 pr-12 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
                   placeholder="Enter your password"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-eldercare-text-light hover:text-eldercare-primary transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary rounded"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -180,6 +183,7 @@ export const AuthForm: React.FC = () => {
                     className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
                     placeholder="Enter your full name"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -198,6 +202,7 @@ export const AuthForm: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
                     placeholder="Enter your age"
+                    disabled={loading}
                   />
                 </div>
 
@@ -212,6 +217,7 @@ export const AuthForm: React.FC = () => {
                     value={formData.gender}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
+                    disabled={loading}
                   >
                     <option value="">Select gender</option>
                     <option value="Male">Male</option>
@@ -264,6 +270,7 @@ export const AuthForm: React.FC = () => {
                 });
               }}
               className="mt-2 text-eldercare-primary hover:text-eldercare-primary-dark font-opensans font-semibold text-base transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary rounded px-2 py-1"
+              disabled={loading}
             >
               {isSignUp ? 'Sign In Instead' : 'Create New Account'}
             </button>
