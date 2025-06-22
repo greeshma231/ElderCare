@@ -22,7 +22,12 @@ const AppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
-        <LoadingSpinner size="lg" message="Loading ElderCare..." />
+        <div className="text-center">
+          <LoadingSpinner size="lg" message="Loading ElderCare..." />
+          <p className="mt-4 text-sm text-eldercare-text-light">
+            If this takes too long, please refresh the page
+          </p>
+        </div>
       </div>
     );
   }

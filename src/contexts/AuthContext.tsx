@@ -40,8 +40,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('🔄 Initializing auth...');
         
+        // Set a timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+          if (mounted) {
+            console.log('⏰ Auth initialization timeout, showing login');
+            setUser(null);
+            setLoading(false);
+          }
+        }, 5000); // 5 second timeout
+
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        clearTimeout(timeoutId);
         
         if (!mounted) return;
 
@@ -53,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (!session) {
-          console.log('❌ No session found');
+          console.log('❌ No session found, showing login');
           setUser(null);
           setLoading(false);
           return;
@@ -97,11 +108,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('🔄 Fetching user profile for:', userId);
       
-      const { data, error } = await supabase
+      // Set timeout for profile fetch
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+      });
+
+      const fetchPromise = supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('❌ Error fetching user profile:', error);
