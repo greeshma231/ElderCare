@@ -8,6 +8,7 @@ interface User {
   age?: number;
   gender?: 'Male' | 'Female' | 'Other';
   primary_caregiver?: string;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -16,6 +17,7 @@ interface AuthContextType {
   signIn: (username: string, password: string) => Promise<{ error?: string }>;
   signUp: (username: string, password: string, fullName: string, age?: number, gender?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +39,8 @@ const DEMO_USERS: User[] = [
     full_name: 'Shelly Thompson',
     age: 72,
     gender: 'Female',
-    primary_caregiver: 'Sarah Johnson'
+    primary_caregiver: 'Sarah Johnson',
+    created_at: '2024-01-15T10:30:00Z'
   }
 ];
 
@@ -130,7 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username,
         full_name: fullName,
         age,
-        gender: gender as any
+        gender: gender as any,
+        created_at: new Date().toISOString()
       };
       
       console.log('✅ Sign up successful for:', newUser.full_name);
@@ -149,6 +153,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: 'An unexpected error occurred' };
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateProfile = async (updates: Partial<User>) => {
+    try {
+      if (!user) throw new Error('No user logged in');
+      
+      console.log('🔄 Updating profile for:', user.username);
+      
+      // Create updated user object
+      const updatedUser = { ...user, ...updates };
+      
+      // Update in users list
+      setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      
+      // Update current user
+      setUser(updatedUser);
+      
+      // Save to localStorage
+      localStorage.setItem('eldercare_user', JSON.stringify(updatedUser));
+      
+      console.log('✅ Profile updated successfully');
+    } catch (error) {
+      console.error('❌ Profile update error:', error);
+      throw error;
     }
   };
 
@@ -178,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

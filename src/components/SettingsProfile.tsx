@@ -9,7 +9,11 @@ import {
   Info,
   X,
   Settings as SettingsIcon,
-  LogOut
+  LogOut,
+  Save,
+  Calendar,
+  Mail,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,8 +23,16 @@ interface AppSettings {
   appointmentAlerts: boolean;
 }
 
+interface EditFormData {
+  full_name: string;
+  age: string;
+  gender: string;
+  primary_caregiver: string;
+  email: string;
+}
+
 export const SettingsProfile: React.FC = () => {
-  const { signOut } = useAuth();
+  const { user, signOut, updateProfile } = useAuth();
   const [settings, setSettings] = useState<AppSettings>({
     voiceAssistant: true,
     medicationAlerts: true,
@@ -29,20 +41,74 @@ export const SettingsProfile: React.FC = () => {
 
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editFormData, setEditFormData] = useState<EditFormData>({
+    full_name: user?.full_name || '',
+    age: user?.age?.toString() || '',
+    gender: user?.gender || '',
+    primary_caregiver: user?.primary_caregiver || '',
+    email: user?.email || ''
+  });
 
   const handleSettingChange = (key: keyof AppSettings, value: boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditLoading(true);
+
+    try {
+      // Simulate save delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const updatedData = {
+        full_name: editFormData.full_name,
+        age: editFormData.age ? parseInt(editFormData.age) : undefined,
+        gender: editFormData.gender as any,
+        primary_caregiver: editFormData.primary_caregiver,
+        email: editFormData.email
+      };
+
+      await updateProfile(updatedData);
+      setShowEditProfile(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleLogout = async () => {
     try {
       await signOut();
       setShowLogoutConfirm(false);
-      // The AuthContext will handle redirecting to the login page
     } catch (error) {
       console.error('Logout error:', error);
-      // Still close the modal even if there's an error
       setShowLogoutConfirm(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const formatJoinDate = (dateString?: string) => {
+    if (!dateString) return 'Recently joined';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch {
+      return 'Recently joined';
     }
   };
 
@@ -66,35 +132,98 @@ export const SettingsProfile: React.FC = () => {
 
         {/* User Profile Section */}
         <section className="bg-white rounded-xl shadow-md border border-eldercare-primary/10 p-6" aria-labelledby="profile-section">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <h2 id="profile-section" className="text-xl font-nunito font-bold text-eldercare-secondary">
               Your Profile
             </h2>
             <button
-              onClick={() => setShowEditProfile(true)}
-              className="flex items-center space-x-2 px-3 py-2 bg-eldercare-primary hover:bg-eldercare-primary-dark text-white rounded-lg font-opensans font-medium text-sm transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
+              onClick={() => {
+                setEditFormData({
+                  full_name: user?.full_name || '',
+                  age: user?.age?.toString() || '',
+                  gender: user?.gender || '',
+                  primary_caregiver: user?.primary_caregiver || '',
+                  email: user?.email || ''
+                });
+                setShowEditProfile(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-eldercare-primary hover:bg-eldercare-primary-dark text-white rounded-lg font-opensans font-medium text-sm transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
             >
               <Edit3 size={16} aria-hidden="true" />
-              <span>Edit</span>
+              <span>Edit Profile</span>
             </button>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-start space-x-6">
             {/* Profile Avatar */}
-            <div className="w-16 h-16 bg-eldercare-primary/10 rounded-full flex items-center justify-center">
-              <span className="text-lg font-nunito font-bold text-eldercare-primary">
-                ST
+            <div className="w-20 h-20 bg-eldercare-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl font-nunito font-bold text-eldercare-primary">
+                {user ? getInitials(user.full_name) : 'U'}
               </span>
             </div>
             
             {/* Profile Info */}
-            <div className="flex-1">
-              <h3 className="text-lg font-nunito font-bold text-eldercare-secondary mb-1">
-                Shelly Thompson, Age 72, Female
-              </h3>
+            <div className="flex-1 space-y-4">
+              {/* Name and Basic Info */}
               <div>
-                <span className="text-sm font-opensans font-medium text-eldercare-text-light">Primary Caregiver:</span>
-                <span className="text-sm font-opensans text-eldercare-secondary ml-2">Sarah Johnson</span>
+                <h3 className="text-2xl font-nunito font-bold text-eldercare-secondary mb-2">
+                  {user?.full_name || 'User Name'}
+                </h3>
+                <div className="flex flex-wrap items-center gap-4 text-base font-opensans text-eldercare-text">
+                  {user?.age && (
+                    <div className="flex items-center space-x-2">
+                      <Calendar size={16} className="text-eldercare-primary" aria-hidden="true" />
+                      <span>Age {user.age}</span>
+                    </div>
+                  )}
+                  {user?.gender && (
+                    <div className="flex items-center space-x-2">
+                      <User size={16} className="text-eldercare-primary" aria-hidden="true" />
+                      <span>{user.gender}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <Mail size={16} className="text-eldercare-primary" aria-hidden="true" />
+                  <div>
+                    <span className="text-sm font-opensans font-medium text-eldercare-text-light">Email:</span>
+                    <span className="text-base font-opensans text-eldercare-secondary ml-2">
+                      {user?.email || 'Not provided'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <UserCheck size={16} className="text-eldercare-primary" aria-hidden="true" />
+                  <div>
+                    <span className="text-sm font-opensans font-medium text-eldercare-text-light">Primary Caregiver:</span>
+                    <span className="text-base font-opensans text-eldercare-secondary ml-2">
+                      {user?.primary_caregiver || 'Not assigned'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <Info size={16} className="text-eldercare-primary" aria-hidden="true" />
+                  <div>
+                    <span className="text-sm font-opensans font-medium text-eldercare-text-light">Member since:</span>
+                    <span className="text-base font-opensans text-eldercare-secondary ml-2">
+                      {formatJoinDate(user?.created_at)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Status */}
+              <div className="pt-3 border-t border-eldercare-primary/10">
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-opensans font-medium bg-green-100 text-green-800 border border-green-200">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  Active Account
+                </div>
               </div>
             </div>
           </div>
@@ -246,7 +375,7 @@ export const SettingsProfile: React.FC = () => {
           </div>
         </section>
 
-        {/* Edit Profile Modal (Non-functional) */}
+        {/* Edit Profile Modal */}
         {showEditProfile && (
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -254,33 +383,144 @@ export const SettingsProfile: React.FC = () => {
             aria-modal="true"
             aria-labelledby="edit-profile-title"
           >
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 id="edit-profile-title" className="text-xl font-nunito font-bold text-eldercare-secondary">
-                  Edit Profile
-                </h3>
-                <button
-                  onClick={() => setShowEditProfile(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary focus:ring-offset-1"
-                  aria-label="Close dialog"
-                >
-                  <X size={24} className="text-eldercare-text" aria-hidden="true" />
-                </button>
-              </div>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 id="edit-profile-title" className="text-xl font-nunito font-bold text-eldercare-secondary">
+                    Edit Profile
+                  </h3>
+                  <button
+                    onClick={() => setShowEditProfile(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-eldercare-primary focus:ring-offset-1"
+                    aria-label="Close dialog"
+                    disabled={editLoading}
+                  >
+                    <X size={24} className="text-eldercare-text" aria-hidden="true" />
+                  </button>
+                </div>
 
-              <div className="text-center py-8">
-                <User size={48} className="text-eldercare-primary mx-auto mb-4" aria-hidden="true" />
-                <p className="text-base font-opensans text-eldercare-text">
-                  Profile editing feature coming soon!
-                </p>
-              </div>
+                <form onSubmit={handleSaveProfile} className="space-y-6">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="edit-full-name" className="block text-base font-opensans font-medium text-eldercare-secondary mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      id="edit-full-name"
+                      name="full_name"
+                      type="text"
+                      value={editFormData.full_name}
+                      onChange={handleEditFormChange}
+                      className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
+                      placeholder="Enter your full name"
+                      required
+                      disabled={editLoading}
+                    />
+                  </div>
 
-              <button
-                onClick={() => setShowEditProfile(false)}
-                className="w-full px-6 py-3 bg-eldercare-primary hover:bg-eldercare-primary-dark text-white rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
-              >
-                Close
-              </button>
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="edit-email" className="block text-base font-opensans font-medium text-eldercare-secondary mb-2">
+                      Email
+                    </label>
+                    <input
+                      id="edit-email"
+                      name="email"
+                      type="email"
+                      value={editFormData.email}
+                      onChange={handleEditFormChange}
+                      className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
+                      placeholder="Enter your email"
+                      disabled={editLoading}
+                    />
+                  </div>
+
+                  {/* Age */}
+                  <div>
+                    <label htmlFor="edit-age" className="block text-base font-opensans font-medium text-eldercare-secondary mb-2">
+                      Age
+                    </label>
+                    <input
+                      id="edit-age"
+                      name="age"
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={editFormData.age}
+                      onChange={handleEditFormChange}
+                      className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
+                      placeholder="Enter your age"
+                      disabled={editLoading}
+                    />
+                  </div>
+
+                  {/* Gender */}
+                  <div>
+                    <label htmlFor="edit-gender" className="block text-base font-opensans font-medium text-eldercare-secondary mb-2">
+                      Gender
+                    </label>
+                    <select
+                      id="edit-gender"
+                      name="gender"
+                      value={editFormData.gender}
+                      onChange={handleEditFormChange}
+                      className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
+                      disabled={editLoading}
+                    >
+                      <option value="">Select gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Primary Caregiver */}
+                  <div>
+                    <label htmlFor="edit-caregiver" className="block text-base font-opensans font-medium text-eldercare-secondary mb-2">
+                      Primary Caregiver
+                    </label>
+                    <input
+                      id="edit-caregiver"
+                      name="primary_caregiver"
+                      type="text"
+                      value={editFormData.primary_caregiver}
+                      onChange={handleEditFormChange}
+                      className="w-full px-4 py-3 text-base font-opensans border-2 border-eldercare-primary/20 rounded-lg focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:border-eldercare-primary transition-all duration-200"
+                      placeholder="Enter primary caregiver name"
+                      disabled={editLoading}
+                    />
+                  </div>
+
+                  {/* Form Actions */}
+                  <div className="flex space-x-4 pt-6 border-t border-eldercare-primary/10">
+                    <button
+                      type="button"
+                      onClick={() => setShowEditProfile(false)}
+                      className="flex-1 px-6 py-3 border-2 border-eldercare-primary text-eldercare-primary rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2 hover:bg-eldercare-primary/5"
+                      disabled={editLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editLoading || !editFormData.full_name.trim()}
+                      className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-eldercare-primary hover:bg-eldercare-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-opensans font-semibold text-base min-h-touch transition-all duration-300 focus:outline-none focus:ring-3 focus:ring-eldercare-primary focus:ring-offset-2"
+                    >
+                      {editLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} aria-hidden="true" />
+                          <span>Save Changes</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}
