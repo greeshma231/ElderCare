@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   LogOut
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AppSettings {
   voiceAssistant: boolean;
@@ -19,6 +20,7 @@ interface AppSettings {
 }
 
 export const SettingsProfile: React.FC = () => {
+  const { signOut } = useAuth();
   const [settings, setSettings] = useState<AppSettings>({
     voiceAssistant: true,
     medicationAlerts: true,
@@ -32,12 +34,16 @@ export const SettingsProfile: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleLogout = () => {
-    // In a real implementation, this would handle logout logic
-    console.log('Logging out...');
-    setShowLogoutConfirm(false);
-    // For demo purposes, just show an alert
-    alert('Logout functionality would be implemented here');
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setShowLogoutConfirm(false);
+      // The AuthContext will handle redirecting to the login page
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still close the modal even if there's an error
+      setShowLogoutConfirm(false);
+    }
   };
 
   return (
