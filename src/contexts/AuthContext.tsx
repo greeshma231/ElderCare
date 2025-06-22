@@ -126,30 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       console.log('🔄 Attempting sign in for username:', username);
       
-      // For demo purposes, check if it's the demo user
-      if (username === 'shelly') {
-        // Create a consistent email for the demo user
-        const email = 'shelly@eldercare.demo';
-        
-        console.log('🔄 Demo user login attempt');
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) {
-          console.log('❌ Demo user auth failed:', error.message);
-          setLoading(false);
-          return { error: 'Invalid username or password' };
-        }
-
-        console.log('✅ Demo user sign in successful');
-        setLoading(false);
-        return {};
-      }
-
-      // For other users, check if they exist in the database first
+      // Check if user exists in the database first
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id, username, full_name')
@@ -162,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: 'Invalid username or password' };
       }
 
-      // Create email from username for auth
+      // Create email from username for auth (consistent for all users)
       const email = `${username}@eldercare.app`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
