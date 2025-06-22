@@ -12,10 +12,20 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { Caregivers } from './components/Caregivers';
 import { SettingsProfile } from './components/SettingsProfile';
 import { Emergency } from './components/Emergency';
+import { LoadingSpinner } from './components/LoadingSpinner';
 
 const AppContent: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [activeSection, setActiveSection] = React.useState('home');
+
+  // Show loading spinner while auth is initializing
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
+        <LoadingSpinner size="lg" message="Loading ElderCare..." />
+      </div>
+    );
+  }
 
   // Show auth form if no user is logged in
   if (!user) {

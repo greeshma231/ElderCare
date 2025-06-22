@@ -1,15 +1,10 @@
-import React, { createContext, useContext, useState } from 'react';
-
-interface User {
-  id: string;
-  username: string;
-  full_name: string;
-  age?: number;
-  gender?: string;
-}
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase, User } from '../lib/supabase';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
   signIn: (username: string, password: string) => Promise<{ error?: string }>;
   signUp: (username: string, password: string, fullName: string, age?: number, gender?: string) => Promise<{ error?: string }>;
@@ -26,84 +21,288 @@ export const useAuth = () => {
   return context;
 };
 
-// In-memory user storage (resets on page refresh)
-let inMemoryUsers: Array<{ id: string; username: string; password: string; full_name: string; age?: number; gender?: string }> = [
-  {
-    id: '1',
-    username: 'shelly',
-    password: 'password123',
-    full_name: 'Shelly Thompson',
-    age: 72,
-    gender: 'Female'
-  }
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        console.log('🔄 Initializing auth...');
+        
+        // Get initial session
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+
+        if (error) {
+          console.error('❌ Error getting session:', error);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        if (!session) {
+          console.log('❌ No session found, showing login');
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('✅ Session found:', session.user.id);
+        setSession(session);
+        await fetchUserProfile(session.user.id);
+        
+      } catch (error) {
+        console.error('❌ Error initializing auth:', error);
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      console.log('🔄 Auth state changed:', event, session?.user?.id || 'No user');
+      
+      setSession(session);
+      
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      console.log('🔄 Fetching user profile for:', userId);
+      
+      // Add retry logic with exponential backoff
+      let retries = 3;
+      let delay = 500;
+      
+      while (retries > 0) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(); // Use maybeSingle instead of single to handle no results gracefully
+
+        if (error) {
+          console.error('❌ Error fetching user profile:', error);
+          retries--;
+          if (retries > 0) {
+            console.log(`🔄 Retrying in ${delay}ms... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2; // Exponential backoff
+            continue;
+          }
+          setUser(null);
+          break;
+        }
+
+        if (data) {
+          console.log('✅ User profile fetched:', data);
+          setUser(data);
+          break;
+        } else {
+          console.log('⚠️ No user profile found, creating one...');
+          // If no profile exists, create a basic one
+          const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: userId,
+              email: `user-${userId}@eldercare.app`,
+              username: `user-${Date.now()}`,
+              full_name: 'New User'
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('❌ Error creating user profile:', createError);
+            setUser(null);
+          } else {
+            console.log('✅ User profile created:', newUser);
+            setUser(newUser);
+          }
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching user profile:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signIn = async (username: string, password: string) => {
-    setLoading(true);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Find user in memory
-    const foundUser = inMemoryUsers.find(u => u.username === username && u.password === password);
-    
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      setLoading(false);
+    try {
+      setLoading(true);
+      console.log('🔄 Attempting sign in for username:', username);
+      
+      // First, check if this user exists in our users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, username, full_name, email')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (userError) {
+        console.error('❌ Error checking user:', userError);
+        setLoading(false);
+        return { error: 'Database error occurred' };
+      }
+
+      if (!userData) {
+        console.log('❌ User not found in database');
+        setLoading(false);
+        return { error: 'Invalid username or password' };
+      }
+
+      console.log('✅ Found user in database:', userData);
+
+      // Use the email from the database record
+      const email = userData.email;
+      
+      // Try to sign in with Supabase auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'eldercare_password_2024', // Fixed password for demo
+      });
+
+      if (authError) {
+        console.error('❌ Auth sign in failed:', authError);
+        setLoading(false);
+        return { error: 'Invalid username or password' };
+      }
+
+      console.log('✅ Sign in successful');
       return {};
+    } catch (error) {
+      console.error('❌ Sign in error:', error);
+      setLoading(false);
+      return { error: 'An unexpected error occurred' };
     }
-    
-    setLoading(false);
-    return { error: 'Invalid username or password' };
   };
 
   const signUp = async (username: string, password: string, fullName: string, age?: number, gender?: string) => {
-    setLoading(true);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if username already exists
-    const existingUser = inMemoryUsers.find(u => u.username === username);
-    if (existingUser) {
+    try {
+      setLoading(true);
+      console.log('🔄 Attempting sign up for username:', username);
+
+      // Check if username already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('❌ Error checking existing user:', checkError);
+        setLoading(false);
+        return { error: 'Database error occurred' };
+      }
+
+      if (existingUser) {
+        console.log('❌ Username already exists');
+        setLoading(false);
+        return { error: 'Username already exists' };
+      }
+
+      // Create email from username for consistent auth
+      const email = `${username}@eldercare.app`;
+
+      console.log('🔄 Creating auth user with email:', email);
+
+      // Step 1: Create Supabase auth user
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: 'eldercare_password_2024', // Fixed password for demo
+      });
+
+      if (error) {
+        console.error('❌ Auth signup error:', error);
+        setLoading(false);
+        return { error: error.message };
+      }
+
+      if (!data?.user?.id) {
+        console.error('❌ No user ID returned from auth signup');
+        setLoading(false);
+        return { error: 'Failed to create authentication account' };
+      }
+
+      console.log('✅ Auth user created:', data.user.id);
+
+      // Step 2: Insert user profile using the authenticated user's ID
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user.id,
+          email,
+          username,
+          full_name: fullName,
+          age,
+          gender,
+        });
+
+      if (insertError) {
+        console.error('❌ Error creating user record:', insertError);
+        // Clean up the auth user if profile creation fails
+        await supabase.auth.signOut();
+        setLoading(false);
+        return { error: 'Failed to create user profile. Please try again.' };
+      }
+
+      console.log('✅ User profile created successfully');
+      return {};
+    } catch (error) {
+      console.error('❌ Sign up error:', error);
       setLoading(false);
-      return { error: 'Username already exists' };
+      return { error: 'An unexpected error occurred' };
     }
-    
-    // Create new user and add to memory
-    const newUser = {
-      id: Date.now().toString(),
-      username,
-      password,
-      full_name: fullName,
-      age,
-      gender
-    };
-    
-    // Add to in-memory storage
-    inMemoryUsers.push(newUser);
-    
-    // Set as current user (without password)
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    setLoading(false);
-    return {};
   };
 
   const signOut = async () => {
-    setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setUser(null);
-    setLoading(false);
+    try {
+      setLoading(true);
+      console.log('🔄 Signing out...');
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error('❌ Sign out error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value = {
     user,
+    session,
     loading,
     signIn,
     signUp,

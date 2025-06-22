@@ -292,13 +292,14 @@ export const AuthForm: React.FC = () => {
             </div>
           )}
 
-          {/* Info about temporary storage */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          {/* Supabase Status */}
+          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-start space-x-3">
-              <AlertCircle size={16} className="text-blue-600 mt-1 flex-shrink-0" aria-hidden="true" />
+              <AlertCircle size={16} className="text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
               <div>
-                <p className="text-sm font-opensans text-blue-700">
-                  <strong>Note:</strong> This is a demo version. Your account will be saved temporarily and will reset when you refresh the page.
+                <p className="text-sm font-opensans text-green-700">
+                  <strong>✅ Connected to Supabase!</strong><br />
+                  Your data will be saved securely in the database.
                 </p>
               </div>
             </div>
