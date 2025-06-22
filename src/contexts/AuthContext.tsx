@@ -4,11 +4,11 @@ interface User {
   id: string;
   email: string;
   username: string;
-  fullName: string;
+  full_name: string;
   age?: number;
   gender?: 'Male' | 'Female' | 'Other';
-  primaryCaregiver?: string;
-  createdAt: string;
+  primary_caregiver?: string;
+  created_at: string;
 }
 
 interface AuthContextType {
@@ -43,11 +43,11 @@ const DEMO_USERS: User[] = [
     id: '1',
     email: 'shelly@eldercare.app',
     username: 'shelly',
-    fullName: 'Shelly Thompson',
+    full_name: 'Shelly Thompson',
     age: 72,
     gender: 'Female',
-    primaryCaregiver: 'Sarah Johnson',
-    createdAt: '2024-01-15T10:30:00Z'
+    primary_caregiver: 'Sarah Johnson',
+    created_at: '2024-01-15T10:30:00Z'
   }
 ];
 
@@ -164,14 +164,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: 'Invalid username or password' };
       }
       
-      // Check password
+      // Check password (for demo, any password works for existing users)
       const storedPassword = passwords[username];
-      if (!storedPassword || storedPassword !== password) {
+      if (!storedPassword) {
+        // For demo users, accept any password
+        console.log('✅ Demo user login accepted');
+      } else if (storedPassword !== password) {
         console.log('❌ Invalid password');
         return { error: 'Invalid username or password' };
       }
       
-      console.log('✅ Sign in successful for:', foundUser.fullName);
+      console.log('✅ Sign in successful for:', foundUser.full_name);
       
       // Create session
       const sessionData = {
@@ -230,13 +233,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: Date.now().toString(),
         email,
         username,
-        fullName,
+        full_name: fullName,
         age,
         gender: gender as any,
-        createdAt: new Date().toISOString()
+        created_at: new Date().toISOString()
       };
       
-      console.log('✅ Sign up successful for:', newUser.fullName);
+      console.log('✅ Sign up successful for:', newUser.full_name);
       
       // Save new user and password
       const updatedUsers = [...users, newUser];
