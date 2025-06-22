@@ -27,21 +27,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+
+        if (error) {
+          console.error('Error getting session:', error);
+          setLoading(false);
+          return;
+        }
+
+        setSession(session);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      console.log('Auth state changed:', event, session?.user?.id);
+      
       setSession(session);
+      
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
@@ -50,11 +77,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('Fetching user profile for:', userId);
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -63,11 +95,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        // If user profile doesn't exist, that's okay - they might need to complete registration
+        setUser(null);
       } else {
+        console.log('User profile fetched:', data);
         setUser(data);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -77,37 +113,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // First, get the user's data from the username
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, password_hash')
-        .eq('username', username)
-        .single();
+      // For demo purposes, we'll use a simplified approach
+      // Check if this is the demo user
+      if (username === 'shelly' && password === 'password123') {
+        // Create a demo session by signing in with a fixed email
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: 'shelly@eldercare.demo',
+          password: 'eldercare_demo_2024',
+        });
 
-      if (userError || !userData) {
-        return { error: 'Invalid username or password' };
+        if (error) {
+          // If user doesn't exist, create them
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: 'shelly@eldercare.demo',
+            password: 'eldercare_demo_2024',
+          });
+
+          if (signUpError) {
+            return { error: 'Failed to create demo account' };
+          }
+
+          // Create the demo user profile
+          if (signUpData.user) {
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: signUpData.user.id,
+                username: 'shelly',
+                password_hash: 'demo_hash',
+                full_name: 'Shelly Thompson',
+                age: 72,
+                gender: 'Female',
+                primary_caregiver: 'Sarah Johnson',
+              });
+
+            if (insertError) {
+              console.error('Error creating demo user profile:', insertError);
+            }
+          }
+        }
+
+        return {};
+      } else {
+        return { error: 'Invalid username or password. Use demo credentials: shelly / password123' };
       }
-
-      // For demo purposes, we'll use a simple password check
-      // In production, you'd use proper password hashing (bcrypt, etc.)
-      if (password !== 'password123') {
-        return { error: 'Invalid username or password' };
-      }
-
-      // Create a session using Supabase auth with the user's ID as email
-      const email = `${userData.id}@eldercare.local`;
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'eldercare_password_2024', // Fixed password for all users in demo
-      });
-
-      if (error) {
-        return { error: 'Authentication failed' };
-      }
-
-      return {};
     } catch (error) {
+      console.error('Sign in error:', error);
       return { error: 'An unexpected error occurred' };
     } finally {
       setLoading(false);
@@ -118,22 +169,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
 
-      // Check if username already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .single();
-
-      if (existingUser) {
-        return { error: 'Username already exists' };
-      }
-
-      // Step 1: Create Supabase auth user first
+      // Generate a unique email for this user
       const email = `${username}_${Date.now()}@eldercare.local`;
+      
+      // Step 1: Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password: 'eldercare_password_2024', // Fixed password for all users in demo
+        password: 'eldercare_password_2024',
       });
 
       if (authError) {
@@ -144,20 +186,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: 'Failed to create authentication account' };
       }
 
-      // Step 2: Now that user is authenticated, insert into users table
-      const { data: { user: currentUser }, error: getUserError } = await supabase.auth.getUser();
-      
-      if (getUserError || !currentUser) {
-        return { error: 'Authentication verification failed' };
-      }
-
-      // Step 3: Insert user profile using the authenticated user's ID
+      // Step 2: Create user profile
       const { error: insertError } = await supabase
         .from('users')
         .insert({
-          id: currentUser.id, // This MUST match auth.uid()
+          id: authData.user.id,
           username,
-          password_hash: 'hashed_password', // In production, hash the password properly
+          password_hash: 'hashed_password',
           full_name: fullName,
           age,
           gender,
@@ -180,7 +215,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value = {
