@@ -10,7 +10,9 @@ import {
   AlertCircle,
   Loader2,
   Heart,
-  CheckCircle
+  CheckCircle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 export const AuthForm: React.FC = () => {
@@ -18,6 +20,7 @@ export const AuthForm: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -25,6 +28,24 @@ export const AuthForm: React.FC = () => {
     age: '',
     gender: ''
   });
+
+  // Check backend status on component mount - Updated to port 5001
+  React.useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('http://localhost:5001/health');
+        if (response.ok) {
+          setBackendStatus('online');
+        } else {
+          setBackendStatus('offline');
+        }
+      } catch (error) {
+        setBackendStatus('offline');
+      }
+    };
+
+    checkBackend();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +90,39 @@ export const AuthForm: React.FC = () => {
     }));
   };
 
+  const getBackendStatusIcon = () => {
+    switch (backendStatus) {
+      case 'checking':
+        return <Loader2 size={16} className="animate-spin text-gray-500" />;
+      case 'online':
+        return <Wifi size={16} className="text-green-600" />;
+      case 'offline':
+        return <WifiOff size={16} className="text-orange-600" />;
+    }
+  };
+
+  const getBackendStatusText = () => {
+    switch (backendStatus) {
+      case 'checking':
+        return 'Checking backend...';
+      case 'online':
+        return 'Backend connected - Data will be saved to MongoDB';
+      case 'offline':
+        return 'Backend offline - Using local storage (data will be lost on refresh)';
+    }
+  };
+
+  const getBackendStatusColor = () => {
+    switch (backendStatus) {
+      case 'checking':
+        return 'bg-gray-50 border-gray-200 text-gray-700';
+      case 'online':
+        return 'bg-green-50 border-green-200 text-green-700';
+      case 'offline':
+        return 'bg-orange-50 border-orange-200 text-orange-700';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-eldercare-background flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -89,16 +143,13 @@ export const AuthForm: React.FC = () => {
           </p>
         </div>
 
-        {/* Local Storage Notice */}
-        <div className="mb-6 p-4 rounded-lg border bg-green-50 border-green-200 text-green-700">
+        {/* Backend Status */}
+        <div className={`mb-6 p-4 rounded-lg border ${getBackendStatusColor()}`}>
           <div className="flex items-center space-x-3">
-            <CheckCircle size={16} className="text-green-600" aria-hidden="true" />
+            {getBackendStatusIcon()}
             <div>
               <p className="text-sm font-opensans font-medium">
-                Local Authentication Active
-              </p>
-              <p className="text-xs font-opensans text-green-600">
-                Your data is stored locally in your browser
+                {getBackendStatusText()}
               </p>
             </div>
           </div>

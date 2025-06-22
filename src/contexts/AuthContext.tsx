@@ -4,11 +4,11 @@ interface User {
   id: string;
   email: string;
   username: string;
-  full_name: string;
+  fullName: string;
   age?: number;
   gender?: 'Male' | 'Female' | 'Other';
-  primary_caregiver?: string;
-  created_at: string;
+  primaryCaregiver?: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -30,113 +30,59 @@ export const useAuth = () => {
   return context;
 };
 
-// Local storage keys
-const STORAGE_KEYS = {
-  USERS: 'eldercare_users',
-  CURRENT_USER: 'eldercare_current_user',
-  SESSION: 'eldercare_session'
-};
+// Backend API configuration - Updated to port 5001
+const API_BASE_URL = 'http://localhost:5001/api';
 
-// Demo users for initial setup
+// Demo users for fallback
 const DEMO_USERS: User[] = [
   {
     id: '1',
     email: 'shelly@eldercare.app',
     username: 'shelly',
-    full_name: 'Shelly Thompson',
+    fullName: 'Shelly Thompson',
     age: 72,
     gender: 'Female',
-    primary_caregiver: 'Sarah Johnson',
-    created_at: '2024-01-15T10:30:00Z'
+    primaryCaregiver: 'Sarah Johnson',
+    createdAt: '2024-01-15T10:30:00Z'
   }
 ];
-
-// Demo passwords (in real app, these would be hashed)
-const DEMO_PASSWORDS: { [key: string]: string } = {
-  'shelly': 'password123'
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>(DEMO_USERS);
+  const [useBackend, setUseBackend] = useState(true);
 
-  // Initialize local storage with demo data if empty
-  const initializeStorage = () => {
-    const existingUsers = localStorage.getItem(STORAGE_KEYS.USERS);
-    if (!existingUsers) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEMO_USERS));
-      localStorage.setItem('eldercare_passwords', JSON.stringify(DEMO_PASSWORDS));
-    }
-  };
-
-  // Get all users from localStorage
-  const getUsers = (): User[] => {
+  // Check if backend is available
+  const checkBackendHealth = async () => {
     try {
-      const users = localStorage.getItem(STORAGE_KEYS.USERS);
-      return users ? JSON.parse(users) : [];
+      const response = await fetch(`${API_BASE_URL}/../health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.ok;
     } catch (error) {
-      console.error('Error parsing users from localStorage:', error);
-      return [];
+      console.log('🔄 Backend not available, using local storage fallback');
+      return false;
     }
   };
 
-  // Get all passwords from localStorage
-  const getPasswords = (): { [key: string]: string } => {
-    try {
-      const passwords = localStorage.getItem('eldercare_passwords');
-      return passwords ? JSON.parse(passwords) : {};
-    } catch (error) {
-      console.error('Error parsing passwords from localStorage:', error);
-      return {};
-    }
-  };
-
-  // Save users to localStorage
-  const saveUsers = (users: User[]) => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-  };
-
-  // Save passwords to localStorage
-  const savePasswords = (passwords: { [key: string]: string }) => {
-    localStorage.setItem('eldercare_passwords', JSON.stringify(passwords));
-  };
-
-  // Check for existing session on app load
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('🔄 Initializing local authentication...');
+      console.log('🔄 Initializing authentication...');
       
-      // Initialize storage with demo data
-      initializeStorage();
+      // Check if backend is available
+      const backendAvailable = await checkBackendHealth();
+      setUseBackend(backendAvailable);
       
-      // Check for existing session
-      const savedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
-      const savedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      
-      if (savedSession && savedUser) {
-        try {
-          const sessionData = JSON.parse(savedSession);
-          const userData = JSON.parse(savedUser);
-          
-          // Check if session is still valid (24 hours)
-          const sessionAge = Date.now() - sessionData.timestamp;
-          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-          
-          if (sessionAge < maxAge) {
-            console.log('✅ Found valid session for:', userData.username);
-            setUser(userData);
-          } else {
-            console.log('❌ Session expired, clearing...');
-            localStorage.removeItem(STORAGE_KEYS.SESSION);
-            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-          }
-        } catch (error) {
-          console.error('❌ Error parsing session data:', error);
-          localStorage.removeItem(STORAGE_KEYS.SESSION);
-          localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-        }
+      if (backendAvailable) {
+        console.log('✅ Backend available, checking for existing session...');
+        await checkBackendSession();
       } else {
-        console.log('❌ No valid session found');
+        console.log('📱 Using local storage fallback...');
+        await checkLocalSession();
       }
       
       setLoading(false);
@@ -145,155 +91,269 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  const signIn = async (username: string, password: string): Promise<{ error?: string }> => {
+  const checkBackendSession = async () => {
+    try {
+      const token = localStorage.getItem('eldercare_token');
+      if (!token) {
+        console.log('❌ No token found');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Found valid session:', data.data.user.username);
+        setUser({
+          id: data.data.user._id,
+          email: data.data.user.email,
+          username: data.data.user.username,
+          fullName: data.data.user.fullName,
+          age: data.data.user.age,
+          gender: data.data.user.gender,
+          primaryCaregiver: data.data.user.primaryCaregiver,
+          createdAt: data.data.user.createdAt
+        });
+      } else {
+        console.log('❌ Invalid token, removing...');
+        localStorage.removeItem('eldercare_token');
+      }
+    } catch (error) {
+      console.error('❌ Error checking backend session:', error);
+      localStorage.removeItem('eldercare_token');
+    }
+  };
+
+  const checkLocalSession = () => {
+    const savedUser = localStorage.getItem('eldercare_user');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        console.log('✅ Found saved local session:', userData.username);
+        setUser(userData);
+      } catch (error) {
+        console.error('❌ Error parsing saved session:', error);
+        localStorage.removeItem('eldercare_user');
+      }
+    } else {
+      console.log('❌ No saved local session found');
+    }
+  };
+
+  const signIn = async (username: string, password: string) => {
     try {
       setLoading(true);
       console.log('🔄 Attempting sign in for username:', username);
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const users = getUsers();
-      const passwords = getPasswords();
-      
-      // Find user by username
-      const foundUser = users.find(u => u.username === username);
-      
-      if (!foundUser) {
-        console.log('❌ User not found');
-        return { error: 'Invalid username or password' };
+      if (useBackend) {
+        return await signInWithBackend(username, password);
+      } else {
+        return await signInWithLocal(username, password);
       }
-      
-      // Check password (for demo, any password works for existing users)
-      const storedPassword = passwords[username];
-      if (!storedPassword) {
-        // For demo users, accept any password
-        console.log('✅ Demo user login accepted');
-      } else if (storedPassword !== password) {
-        console.log('❌ Invalid password');
-        return { error: 'Invalid username or password' };
-      }
-      
-      console.log('✅ Sign in successful for:', foundUser.full_name);
-      
-      // Create session
-      const sessionData = {
-        userId: foundUser.id,
-        timestamp: Date.now()
-      };
-      
-      // Save session and user data
-      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(sessionData));
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(foundUser));
-      setUser(foundUser);
-      
-      return {};
     } catch (error) {
       console.error('❌ Sign in error:', error);
+      setLoading(false);
       return { error: 'An unexpected error occurred' };
     } finally {
       setLoading(false);
     }
   };
 
-  const signUp = async (
-    username: string, 
-    password: string, 
-    fullName: string, 
-    age?: number, 
-    gender?: string
-  ): Promise<{ error?: string }> => {
+  const signInWithBackend = async (username: string, password: string) => {
+    try {
+      // For demo purposes, we'll use email format for backend
+      const email = username.includes('@') ? username : `${username}@eldercare.app`;
+      
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('✅ Backend sign in successful:', data.data.user.username);
+        
+        // Save token
+        localStorage.setItem('eldercare_token', data.data.token);
+        
+        // Set user
+        const userData = {
+          id: data.data.user.id,
+          email: data.data.user.email,
+          username: data.data.user.username,
+          fullName: data.data.user.fullName,
+          age: data.data.user.age,
+          gender: data.data.user.gender,
+          primaryCaregiver: data.data.user.primaryCaregiver,
+          createdAt: data.data.user.createdAt
+        };
+        setUser(userData);
+        
+        return {};
+      } else {
+        console.log('❌ Backend sign in failed:', data.message);
+        return { error: data.message || 'Invalid username or password' };
+      }
+    } catch (error) {
+      console.error('❌ Backend sign in error:', error);
+      // Fallback to local auth
+      console.log('🔄 Falling back to local authentication...');
+      setUseBackend(false);
+      return await signInWithLocal(username, password);
+    }
+  };
+
+  const signInWithLocal = async (username: string, password: string) => {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Find user in our demo users or registered users
+    const foundUser = users.find(u => u.username === username);
+    
+    if (!foundUser) {
+      console.log('❌ User not found locally');
+      return { error: 'Invalid username or password' };
+    }
+    
+    // For demo, accept any password for existing users
+    console.log('✅ Local sign in successful for:', foundUser.fullName);
+    
+    // Save session to localStorage
+    localStorage.setItem('eldercare_user', JSON.stringify(foundUser));
+    setUser(foundUser);
+    
+    return {};
+  };
+
+  const signUp = async (username: string, password: string, fullName: string, age?: number, gender?: string) => {
     try {
       setLoading(true);
       console.log('🔄 Attempting sign up for username:', username);
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const users = getUsers();
-      const passwords = getPasswords();
-      
-      // Check if username already exists
-      const existingUser = users.find(u => u.username === username);
-      if (existingUser) {
-        console.log('❌ Username already exists');
-        return { error: 'Username already exists' };
+      if (useBackend) {
+        return await signUpWithBackend(username, password, fullName, age, gender);
+      } else {
+        return await signUpWithLocal(username, password, fullName, age, gender);
       }
-      
-      // Check if email already exists
-      const email = `${username}@eldercare.app`;
-      const existingEmail = users.find(u => u.email === email);
-      if (existingEmail) {
-        console.log('❌ Email already exists');
-        return { error: 'Email already exists' };
-      }
-      
-      // Create new user
-      const newUser: User = {
-        id: Date.now().toString(),
-        email,
-        username,
-        full_name: fullName,
-        age,
-        gender: gender as any,
-        created_at: new Date().toISOString()
-      };
-      
-      console.log('✅ Sign up successful for:', newUser.full_name);
-      
-      // Save new user and password
-      const updatedUsers = [...users, newUser];
-      const updatedPasswords = { ...passwords, [username]: password };
-      
-      saveUsers(updatedUsers);
-      savePasswords(updatedPasswords);
-      
-      // Create session
-      const sessionData = {
-        userId: newUser.id,
-        timestamp: Date.now()
-      };
-      
-      // Save session and user data
-      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(sessionData));
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(newUser));
-      setUser(newUser);
-      
-      return {};
     } catch (error) {
       console.error('❌ Sign up error:', error);
+      setLoading(false);
       return { error: 'An unexpected error occurred' };
     } finally {
       setLoading(false);
     }
   };
 
-  const updateProfile = async (updates: Partial<User>): Promise<void> => {
+  const signUpWithBackend = async (username: string, password: string, fullName: string, age?: number, gender?: string) => {
+    try {
+      const email = `${username}@eldercare.app`;
+      
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          username,
+          password,
+          fullName,
+          age,
+          gender,
+          primaryCaregiver: ''
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('✅ Backend sign up successful:', data.data.user.username);
+        
+        // Save token
+        localStorage.setItem('eldercare_token', data.data.token);
+        
+        // Set user
+        const userData = {
+          id: data.data.user.id,
+          email: data.data.user.email,
+          username: data.data.user.username,
+          fullName: data.data.user.fullName,
+          age: data.data.user.age,
+          gender: data.data.user.gender,
+          primaryCaregiver: data.data.user.primaryCaregiver,
+          createdAt: data.data.user.createdAt
+        };
+        setUser(userData);
+        
+        return {};
+      } else {
+        console.log('❌ Backend sign up failed:', data.message);
+        return { error: data.message || 'Registration failed' };
+      }
+    } catch (error) {
+      console.error('❌ Backend sign up error:', error);
+      // Fallback to local auth
+      console.log('🔄 Falling back to local registration...');
+      setUseBackend(false);
+      return await signUpWithLocal(username, password, fullName, age, gender);
+    }
+  };
+
+  const signUpWithLocal = async (username: string, password: string, fullName: string, age?: number, gender?: string) => {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Check if username already exists
+    const existingUser = users.find(u => u.username === username);
+    if (existingUser) {
+      console.log('❌ Username already exists locally');
+      return { error: 'Username already exists' };
+    }
+    
+    // Create new user
+    const newUser: User = {
+      id: Date.now().toString(),
+      email: `${username}@eldercare.app`,
+      username,
+      fullName,
+      age,
+      gender: gender as any,
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log('✅ Local sign up successful for:', newUser.fullName);
+    
+    // Add to users list
+    setUsers(prev => [...prev, newUser]);
+    
+    // Save session to localStorage
+    localStorage.setItem('eldercare_user', JSON.stringify(newUser));
+    setUser(newUser);
+    
+    return {};
+  };
+
+  const updateProfile = async (updates: Partial<User>) => {
     try {
       if (!user) throw new Error('No user logged in');
       
       console.log('🔄 Updating profile for:', user.username);
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const users = getUsers();
-      const userIndex = users.findIndex(u => u.id === user.id);
-      
-      if (userIndex === -1) {
-        throw new Error('User not found');
+      if (useBackend) {
+        await updateProfileWithBackend(updates);
+      } else {
+        await updateProfileWithLocal(updates);
       }
-      
-      // Update user data
-      const updatedUser = { ...users[userIndex], ...updates };
-      users[userIndex] = updatedUser;
-      
-      // Save updated users
-      saveUsers(users);
-      
-      // Update current user in localStorage and state
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
-      setUser(updatedUser);
       
       console.log('✅ Profile updated successfully');
     } catch (error) {
@@ -302,7 +362,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async (): Promise<void> => {
+  const updateProfileWithBackend = async (updates: Partial<User>) => {
+    try {
+      const token = localStorage.getItem('eldercare_token');
+      if (!token) throw new Error('No token found');
+
+      const response = await fetch(`${API_BASE_URL}/users/me`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: updates.fullName,
+          age: updates.age,
+          gender: updates.gender,
+          primaryCaregiver: updates.primaryCaregiver,
+          email: updates.email
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const updatedUser = {
+          id: data.data.user._id,
+          email: data.data.user.email,
+          username: data.data.user.username,
+          fullName: data.data.user.fullName,
+          age: data.data.user.age,
+          gender: data.data.user.gender,
+          primaryCaregiver: data.data.user.primaryCaregiver,
+          createdAt: data.data.user.createdAt
+        };
+        setUser(updatedUser);
+      } else {
+        throw new Error('Failed to update profile on backend');
+      }
+    } catch (error) {
+      console.error('❌ Backend profile update error:', error);
+      // Fallback to local update
+      await updateProfileWithLocal(updates);
+    }
+  };
+
+  const updateProfileWithLocal = async (updates: Partial<User>) => {
+    if (!user) return;
+    
+    // Create updated user object
+    const updatedUser = { ...user, ...updates };
+    
+    // Update in users list
+    setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+    
+    // Update current user
+    setUser(updatedUser);
+    
+    // Save to localStorage
+    localStorage.setItem('eldercare_user', JSON.stringify(updatedUser));
+  };
+
+  const signOut = async () => {
     try {
       setLoading(true);
       console.log('🔄 Signing out...');
@@ -310,9 +429,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Clear all session data
-      localStorage.removeItem(STORAGE_KEYS.SESSION);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      // Clear all stored data
+      localStorage.removeItem('eldercare_token');
+      localStorage.removeItem('eldercare_user');
       setUser(null);
       
       console.log('✅ Signed out successfully');
