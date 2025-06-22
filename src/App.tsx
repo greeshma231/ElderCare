@@ -15,32 +15,22 @@ import { Emergency } from './components/Emergency';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+  // TEMPORARILY BYPASS AUTH - REMOVE THIS LATER
   const [activeSection, setActiveSection] = React.useState('home');
+  
+  // Mock user for testing
+  const mockUser = {
+    id: '1',
+    username: 'shelly',
+    full_name: 'Shelly Thompson',
+    age: 72,
+    gender: 'Female' as const,
+    primary_caregiver: 'Sarah Johnson',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
 
-  console.log("🔍 App State Check:", { 
-    loading, 
-    hasUser: !!user, 
-    username: user?.username || 'none' 
-  });
-
-  // Show loading spinner while auth is initializing
-  if (loading) {
-    console.log('⏳ Still loading, showing spinner...');
-    return (
-      <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
-        <LoadingSpinner size="lg" message="Loading ElderCare..." />
-      </div>
-    );
-  }
-
-  // Show auth form if no user is logged in
-  if (!user) {
-    console.log('🔐 No user found, showing auth form');
-    return <AuthForm />;
-  }
-
-  console.log('✅ User authenticated, showing main app for:', user.username);
+  console.log('🚀 BYPASSING AUTH - Using mock user for testing');
 
   const renderMainContent = () => {
     switch (activeSection) {
