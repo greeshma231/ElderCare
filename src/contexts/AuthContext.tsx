@@ -30,8 +30,8 @@ export const useAuth = () => {
   return context;
 };
 
-// Backend API configuration
-const API_BASE_URL = 'http://localhost:3001/api';
+// Backend API configuration - Updated to port 5001
+const API_BASE_URL = 'http://localhost:5001/api';
 
 // Demo users for fallback
 const DEMO_USERS: User[] = [

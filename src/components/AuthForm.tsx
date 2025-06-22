@@ -29,11 +29,11 @@ export const AuthForm: React.FC = () => {
     gender: ''
   });
 
-  // Check backend status on component mount
+  // Check backend status on component mount - Updated to port 5001
   React.useEffect(() => {
     const checkBackend = async () => {
       try {
-        const response = await fetch('http://localhost:3001/health');
+        const response = await fetch('http://localhost:5001/health');
         if (response.ok) {
           setBackendStatus('online');
         } else {
