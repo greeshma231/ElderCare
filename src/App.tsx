@@ -18,11 +18,15 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [activeSection, setActiveSection] = React.useState('home');
 
-  console.log("Current State =>", { loading, user: !!user });
+  console.log("🔍 App State Check:", { 
+    loading, 
+    hasUser: !!user, 
+    username: user?.username || 'none' 
+  });
 
   // Show loading spinner while auth is initializing
   if (loading) {
-    console.log('🔄 Showing loading spinner');
+    console.log('⏳ Still loading, showing spinner...');
     return (
       <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
         <LoadingSpinner size="lg" message="Loading ElderCare..." />
@@ -32,11 +36,11 @@ const AppContent: React.FC = () => {
 
   // Show auth form if no user is logged in
   if (!user) {
-    console.log('🔄 Showing auth form');
+    console.log('🔐 No user found, showing auth form');
     return <AuthForm />;
   }
 
-  console.log('✅ Showing main app');
+  console.log('✅ User authenticated, showing main app for:', user.username);
 
   const renderMainContent = () => {
     switch (activeSection) {
