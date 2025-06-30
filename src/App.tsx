@@ -1,6 +1,4 @@
 import React from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AuthForm } from './components/AuthForm';
 import { SkipLink } from './components/SkipLink';
 import { Sidebar } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
@@ -12,25 +10,9 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { Caregivers } from './components/Caregivers';
 import { SettingsProfile } from './components/SettingsProfile';
 import { Emergency } from './components/Emergency';
-import { LoadingSpinner } from './components/LoadingSpinner';
 
-const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+const App: React.FC = () => {
   const [activeSection, setActiveSection] = React.useState('home');
-
-  // Show loading spinner while auth is initializing
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-eldercare-background flex items-center justify-center">
-        <LoadingSpinner size="lg" message="Loading ElderCare..." />
-      </div>
-    );
-  }
-
-  // Show auth form if no user is logged in
-  if (!user) {
-    return <AuthForm />;
-  }
 
   const renderMainContent = () => {
     switch (activeSection) {
@@ -80,14 +62,6 @@ const AppContent: React.FC = () => {
         className="sr-only"
       />
     </div>
-  );
-};
-
-const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 };
 

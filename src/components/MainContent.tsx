@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ErrorMessage } from './ErrorMessage';
-import { useAuth } from '../contexts/AuthContext';
 
 interface MainContentProps {
   activeSection?: string;
@@ -41,7 +40,6 @@ interface Alert {
 }
 
 export const MainContent: React.FC<MainContentProps> = ({ activeSection = 'home' }) => {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -119,8 +117,7 @@ export const MainContent: React.FC<MainContentProps> = ({ activeSection = 'home'
 
   // Get user's first name for greeting
   const getUserFirstName = () => {
-    if (!user?.full_name) return 'there';
-    return user.full_name.split(' ')[0];
+    return 'Shelly';
   };
 
   // Get appropriate emoji for time of day

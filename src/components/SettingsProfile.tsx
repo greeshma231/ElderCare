@@ -15,7 +15,6 @@ import {
   Mail,
   UserCheck
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 
 interface AppSettings {
   voiceAssistant: boolean;
@@ -32,7 +31,16 @@ interface EditFormData {
 }
 
 export const SettingsProfile: React.FC = () => {
-  const { user, signOut, updateProfile } = useAuth();
+  // Mock user data
+  const user = {
+    full_name: 'Shelly Thompson',
+    age: 72,
+    gender: 'Female',
+    primary_caregiver: 'Sarah Johnson',
+    email: 'shelly@eldercare.app',
+    created_at: '2024-01-15T10:30:00Z'
+  };
+
   const [settings, setSettings] = useState<AppSettings>({
     voiceAssistant: true,
     medicationAlerts: true,
@@ -43,11 +51,11 @@ export const SettingsProfile: React.FC = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editFormData, setEditFormData] = useState<EditFormData>({
-    full_name: user?.full_name || '',
-    age: user?.age?.toString() || '',
-    gender: user?.gender || '',
-    primary_caregiver: user?.primary_caregiver || '',
-    email: user?.email || ''
+    full_name: user.full_name,
+    age: user.age.toString(),
+    gender: user.gender,
+    primary_caregiver: user.primary_caregiver,
+    email: user.email
   });
 
   const handleSettingChange = (key: keyof AppSettings, value: boolean) => {
@@ -69,15 +77,8 @@ export const SettingsProfile: React.FC = () => {
       // Simulate save delay
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const updatedData = {
-        full_name: editFormData.full_name,
-        age: editFormData.age ? parseInt(editFormData.age) : undefined,
-        gender: editFormData.gender as any,
-        primary_caregiver: editFormData.primary_caregiver,
-        email: editFormData.email
-      };
-
-      await updateProfile(updatedData);
+      // In a real app, this would update the user profile
+      console.log('Profile updated:', editFormData);
       setShowEditProfile(false);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -88,7 +89,8 @@ export const SettingsProfile: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      // In a real app, this would sign out the user
+      console.log('User logged out');
       setShowLogoutConfirm(false);
     } catch (error) {
       console.error('Logout error:', error);
@@ -167,16 +169,16 @@ export const SettingsProfile: React.FC = () => {
               {/* Name and Basic Info */}
               <div>
                 <h3 className="text-2xl font-nunito font-bold text-eldercare-secondary mb-2">
-                  {user?.full_name || 'User Name'}
+                  {user.full_name}
                 </h3>
                 <div className="flex flex-wrap items-center gap-4 text-base font-opensans text-eldercare-text">
-                  {user?.age && (
+                  {user.age && (
                     <div className="flex items-center space-x-2">
                       <Calendar size={16} className="text-eldercare-primary" aria-hidden="true" />
                       <span>Age {user.age}</span>
                     </div>
                   )}
-                  {user?.gender && (
+                  {user.gender && (
                     <div className="flex items-center space-x-2">
                       <User size={16} className="text-eldercare-primary" aria-hidden="true" />
                       <span>{user.gender}</span>
@@ -192,7 +194,7 @@ export const SettingsProfile: React.FC = () => {
                   <div>
                     <span className="text-sm font-opensans font-medium text-eldercare-text-light">Email:</span>
                     <span className="text-base font-opensans text-eldercare-secondary ml-2">
-                      {user?.email || 'Not provided'}
+                      {user.email}
                     </span>
                   </div>
                 </div>
@@ -202,7 +204,7 @@ export const SettingsProfile: React.FC = () => {
                   <div>
                     <span className="text-sm font-opensans font-medium text-eldercare-text-light">Primary Caregiver:</span>
                     <span className="text-base font-opensans text-eldercare-secondary ml-2">
-                      {user?.primary_caregiver || 'Not assigned'}
+                      {user.primary_caregiver}
                     </span>
                   </div>
                 </div>
@@ -212,7 +214,7 @@ export const SettingsProfile: React.FC = () => {
                   <div>
                     <span className="text-sm font-opensans font-medium text-eldercare-text-light">Member since:</span>
                     <span className="text-base font-opensans text-eldercare-secondary ml-2">
-                      {formatJoinDate(user?.created_at)}
+                      {formatJoinDate(user.created_at)}
                     </span>
                   </div>
                 </div>
